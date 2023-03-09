@@ -46,3 +46,4 @@ path = client.get_from_link("< chat link >")
 local = kamino.Local(path.comId)
 local.send_message(path.objectId, "< message >")
 ```
+# KAmino
