@@ -1,11 +1,13 @@
-## KAmino
-KAmino is unofficial client for [Aminoapps](https://aminoapps.com/) API in Python. 
+# k_amino
+
+## k_amino
+k_amino is unofficial client for [Aminoapps](https://aminoapps.com/) API in Python.
 
 ## Installation
-You can use either `python3 setup.py install` or `pip3 install kamino` to install. This module is tested on Python 3.9+.
+You can use either `python3 setup.py install` or `pip3 install k_amino` to install. This module is tested on Python 3.9+.
 
 ## Contributing
-KAmino is open source module, anyone can contribute. Please see the [Github Repository](https://github.com/Kwel999/KAmino)
+k_amino is open source module, anyone can contribute. Please see the [Github Repository](https://github.com/Kwel999/k_amino)
 
 ## Discord
 You can join the [Discord Server](https://discord.gg/vhBtt2QB) to add suggestions or to report problems
@@ -22,28 +24,29 @@ and to get new updates and changes
 ## Examples
 #### Get SessionID
 ```py
-import kamino
+import k_amino
 
-client = kamino.Client()
+client = k_amino.Client()
 client.login("< email >", "< password >")
 print(client.sid)
 ```
+
 #### Login with SessionID
 ```py
-import kamino
+import k_amino
 
-client = samino.Client()
+client = k_amino.Client()
 client.sid_login("< sid >")
 print(client.sid)
 ```
 #### Send a message in chat
-```py
-import kamino
 
-client = kamino.Client()
+```py
+import k_amino
+
+client = k_amino.Client()
 client.login("< email >", "< password >")
 path = client.get_from_link("< chat link >")
-local = kamino.Local(path.comId)
+local = k_amino.Local(path.comId)
 local.send_message(path.objectId, "< message >")
 ```
-# KAmino
