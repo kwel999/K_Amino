@@ -1164,13 +1164,6 @@ class SubClient(Acm, Session):
            req = self.deleteRequest(f"/x{self.comId}/s/chat/thread/{chatId}/co-host/{userId}")
            return Json(req) 
 
-
-    def remove_host(self, chatId: str, userId: str):
-        req = self.deleteRequest(
-            f"/x{self.comId}/s/chat/thread/{chatId}/co-host/{userId}"
-        )
-        return Json(req)
-
     def get_quizzes(self, quizzesType: str = "recent", start: int = 0, size: int = 25):
         link = {
             "recent": f"x{self.comId}/s/blog?type=quizzes-recent&start={start}&size={size}",
