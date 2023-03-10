@@ -22,7 +22,7 @@ class Session(Headers):
         self.sid = user_settings["sid"]
         self.uid = user_settings["userId"]
         self.secret = user_settings["secret"]
-        
+
         Headers.__init__(self, header_device=self.staticDevice)
         self.session = Client(proxies=self.proxy, timeout = 20)
 

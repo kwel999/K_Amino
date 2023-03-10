@@ -11,12 +11,12 @@ from .sockets import Wss
 
 
 class Client(Wss, Session):
-    def __init__(self, deviceId: str = None, proxies: dict = None, trace: bool = False):
+    def __init__(self, deviceId: str = None, proxies: dict = None, trace: bool = False, bot: bool = False):
         self.trace = trace
         self.proxies = proxies
         self.deviceId = deviceId
 
-        Wss.__init__(self, self, trace=self.trace)
+        Wss.__init__(self, self, trace=self.trace, is_bot=bot)
         Session.__init__(self, proxies=self.proxies, staticDevice=self.deviceId)
 
     def change_lang(self, lang: str = "ar-SY"):
@@ -60,7 +60,8 @@ class Client(Wss, Session):
             user_session=f'sid={req["sid"]}',
             user_secret=secret if secret else req["secret"],
         )
-        if socket: self.launch()
+        if socket or self.is_bot:
+            self.launch()
         return Login(req)
 
     def logout(self):

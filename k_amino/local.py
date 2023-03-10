@@ -8,14 +8,18 @@ from uuid import UUID
 
 from .lib.objects import *
 from .lib.sessions import Session
+from .acm import Acm
 
 
-class Local(Session):
-    def __init__(self, comId: str, proxies: dict = None):
+class Local(Acm, Session):
+    def __init__(self, comId: str, proxies: dict = None, acm: bool = False):
         self.proxies = proxies
         self.comId = comId
-
-        Session.__init__(self, proxies=self.proxies)
+        
+        if acm:
+            Acm.__init__(self, comId=self.comId, proxies=self.proxies)
+        else:
+            Session.__init__(self, proxies=self.proxies)
 
     def get_video_rep_info(self, chatId: str):
         req = self.getRequest(

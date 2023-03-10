@@ -2830,11 +2830,11 @@ class NotificationList:
         _author = []
 
         self.json = data
-        
+
         self.pagingToken = self.json['paging']['nextPageToken']
         self.notificationsCount = self.json['notificationsCount']
         self.notificationsList = self.json['notificationList']
-        
+
         for y in self.notificationsList:
             try: _author.append(y["operator"])
             except (KeyError, TypeError): _author.append(None)

@@ -10,10 +10,16 @@ import websocket
 
 from .lib import *
 from .lib.objects import *
+from .bot import Bot
 
 
-class Callbacks:
-    def __init__(self):
+class Callbacks(Bot):
+    def __init__(self, is_bot: bool = False, prefix: str = "!"):
+        Bot.__init__(self, prefix=prefix)
+
+        # if the user want to use the script as a bot
+        self.is_bot = is_bot
+
         self.handlers = {}
 
         self.methods = {
@@ -91,28 +97,28 @@ class Callbacks:
 
     def _resolve_payload(self, data):
         key = f"{data['o']['payload']['notifType']}"
-        return self.notif_methods.get(key, self.default)(data)
+        return self.notif_methods.get(key)(data)
 
     def _resolve_chat_message(self, data):
         key = f"{data['o']['chatMessage']['type']}:{data['o']['chatMessage'].get('mediaType', 0)}"
-        return self.chat_methods.get(key, self.default)(data)
+        return self.chat_methods.get(key)(data)
 
     def _resolve_topics(self, data):
         key = str(data["o"].get("topic", 0)).split(":")[2]
-        return self.topics.get(key, self.default)(data)
+        return self.topics.get(key)(data)
 
     def resolve(self, data):
         data = json.loads(data)
-        return self.methods.get(data["t"], self.default)(data)
+        return self.methods.get(data["t"])(data)
 
     def call(self, callType, data):
-        if callType in self.handlers:
+        if self.handlers.get(callType):
             for handler in self.handlers[callType]:
                 handler(data)
 
     def event(self, eventType):
         def registerHandler(handler):
-            if eventType in self.handlers:
+            if self.handlers.get(eventType):
                 self.handlers[eventType].append(handler)
             else:
                 self.handlers[eventType] = [handler]
@@ -133,6 +139,11 @@ class Callbacks:
         self.call(getframe(0).f_code.co_name, Payload(data["o"]).Payload)
 
     def on_text_message(self, data):
+        if self.is_bot:
+            new_data = Event(data["o"]).Event
+            new_data = self.build_parameters(new_data)
+            self.trigger(new_data)
+
         self.setCall(getframe(0).f_code.co_name, data)
 
     def on_image_message(self, data):
@@ -662,7 +673,7 @@ class WssClient:
 
 
 class Wss(Callbacks, WssClient, Headers):
-    def __init__(self, client, trace: bool = False):
+    def __init__(self, client, trace: bool = False, is_bot: bool = False):
 
         self.trace = trace
         self.socket = None
@@ -671,7 +682,7 @@ class Wss(Callbacks, WssClient, Headers):
         self.isOpened = False
 
         Headers.__init__(self)
-        Callbacks.__init__(self)
+        Callbacks.__init__(self, is_bot=is_bot)
         WssClient.__init__(self, self)
 
         self.narvi = "https://service.narvii.com/api/v1/"
@@ -710,7 +721,7 @@ class Wss(Callbacks, WssClient, Headers):
             "NDCAUTH": self.client.sid,
             "NDC-MSG-SIG": util.generateSig(data=final),
         }
-        
+
         self.socket = websocket.WebSocketApp(
             f"{self.socket_url}/?signbody={final.replace('|', '%7C')}",
             on_message=self.on_message,
