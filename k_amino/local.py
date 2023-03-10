@@ -1150,6 +1150,21 @@ class SubClient(Acm, Session):
         )
         return Json(req)
 
+    def set_cohost(self, chatId : str, asistent_id : [str, list]):
+         data = {
+            "uidList": asistent_id,
+            "timestamp": int(timestamp() * 1000)
+        }
+        
+         req = self.postRequest(f"/x{self.comId}/s/chat/thread/{chatId}/co-host", data)
+         return Json(req)
+
+
+    def del_cohost(self, chatId : str, userId : str):
+           req = self.deleteRequest(f"/x{self.comId}/s/chat/thread/{chatId}/co-host/{userId}")
+           return Json(req) 
+
+
     def remove_host(self, chatId: str, userId: str):
         req = self.deleteRequest(
             f"/x{self.comId}/s/chat/thread/{chatId}/co-host/{userId}"
