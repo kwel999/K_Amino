@@ -129,15 +129,6 @@ class Callbacks(Bot):
     def setCall(self, name, data):
         self.call(name, Event(data["o"]).Event)
 
-    def on_member_set_you_host(self, data):
-        self.call(getframe(0).f_code.co_name, Payload(data["o"]).Payload)
-
-    def on_member_remove_you_cohost(self, data):
-        self.call(getframe(0).f_code.co_name, Payload(data["o"]).Payload)
-
-    def on_member_set_you_cohost(self, data):
-        self.call(getframe(0).f_code.co_name, Payload(data["o"]).Payload)
-
     def on_text_message(self, data):
         if self.is_bot:
             new_data = Event(data["o"]).Event
@@ -146,164 +137,66 @@ class Callbacks(Bot):
 
         self.setCall(getframe(0).f_code.co_name, data)
 
-    def on_image_message(self, data):
-        self.setCall(getframe(0).f_code.co_name, data)
+    def on_member_set_you_host(self, data): self.call(getframe(0).f_code.co_name, Payload(data["o"]).Payload)
+    def on_member_remove_you_cohost(self, data): self.call(getframe(0).f_code.co_name, Payload(data["o"]).Payload)
+    def on_member_set_you_cohost(self, data): self.call(getframe(0).f_code.co_name, Payload(data["o"]).Payload)
 
-    def on_youtube_message(self, data):
-        self.setCall(getframe(0).f_code.co_name, data)
+    def on_image_message(self, data): self.setCall(getframe(0).f_code.co_name, data)
+    def on_youtube_message(self, data): self.setCall(getframe(0).f_code.co_name, data)
+    def on_strike_message(self, data): self.setCall(getframe(0).f_code.co_name, data)
+    def on_voice_message(self, data): self.setCall(getframe(0).f_code.co_name, data)
+    def on_sticker_message(self, data): self.setCall(getframe(0).f_code.co_name, data)
+    def TYPE_USER_SHARE_EXURL(self, data): self.setCall(getframe(0).f_code.co_name, data)
+    def TYPE_USER_SHARE_USER(self, data): self.setCall(getframe(0).f_code.co_name, data)
+    def on_voice_chat_not_answered(self, data): self.setCall(getframe(0).f_code.co_name, data)
+    def on_voice_chat_not_cancelled(self, data): self.setCall(getframe(0).f_code.co_name, data)
+    def on_voice_chat_not_declined(self, data): self.setCall(getframe(0).f_code.co_name, data)
+    def on_video_chat_not_answered(self, data): self.setCall(getframe(0).f_code.co_name, data)
+    def on_video_chat_not_cancelled(self, data): self.setCall(getframe(0).f_code.co_name, data)
+    def on_video_chat_not_declined(self, data): self.setCall(getframe(0).f_code.co_name, data)
+    def on_avatar_chat_not_answered(self, data): self.setCall(getframe(0).f_code.co_name, data)
+    def on_avatar_chat_not_cancelled(self, data): self.setCall(getframe(0).f_code.co_name, data)
+    def on_avatar_chat_not_declined(self, data): self.setCall(getframe(0).f_code.co_name, data)
+    def on_delete_message(self, data): self.setCall(getframe(0).f_code.co_name, data)
+    def on_group_member_join(self, data): self.setCall(getframe(0).f_code.co_name, data)
+    def on_group_member_leave(self, data): self.setCall(getframe(0).f_code.co_name, data)
+    def on_chat_invite(self, data): self.setCall(getframe(0).f_code.co_name, data)
+    def on_chat_background_changed(self, data): self.setCall(getframe(0).f_code.co_name, data)
+    def on_chat_title_changed(self, data): self.setCall(getframe(0).f_code.co_name, data)
+    def on_chat_icon_changed(self, data): self.setCall(getframe(0).f_code.co_name, data)
+    def on_voice_chat_start(self, data): self.setCall(getframe(0).f_code.co_name, data)
+    def on_video_chat_start(self, data): self.setCall(getframe(0).f_code.co_name, data)
+    def on_avatar_chat_start(self, data): self.setCall(getframe(0).f_code.co_name, data)
+    def on_voice_chat_end(self, data): self.setCall(getframe(0).f_code.co_name, data)
+    def on_video_chat_end(self, data): self.setCall(getframe(0).f_code.co_name, data)
+    def on_avatar_chat_end(self, data): self.setCall(getframe(0).f_code.co_name, data)
+    def on_chat_content_changed(self, data): self.setCall(getframe(0).f_code.co_name, data)
+    def on_screen_room_start(self, data): self.setCall(getframe(0).f_code.co_name, data)
+    def on_screen_room_end(self, data): self.setCall(getframe(0).f_code.co_name, data)
+    def on_chat_host_transfered(self, data): self.setCall(getframe(0).f_code.co_name, data)
+    def on_text_message_force_removed(self, data): self.setCall(getframe(0).f_code.co_name, data)
+    def on_chat_removed_message(self, data): self.setCall(getframe(0).f_code.co_name, data)
+    def on_text_message_removed_by_admin(self, data): self.setCall(getframe(0).f_code.co_name, data)
+    def on_chat_tip(self, data): self.setCall(getframe(0).f_code.co_name, data)
+    def on_chat_pin_announcement(self, data): self.setCall(getframe(0).f_code.co_name, data)
+    def on_voice_chat_permission_open_to_everyone(self, data): self.setCall(getframe(0).f_code.co_name, data)
+    def on_voice_chat_permission_invited_and_requested(self, data): self.setCall(getframe(0).f_code.co_name, data)
+    def on_voice_chat_permission_invite_only(self, data): self.setCall(getframe(0).f_code.co_name, data)
+    def on_chat_view_only_enabled(self, data): self.setCall(getframe(0).f_code.co_name, data)
+    def on_chat_view_only_disabled(self, data): self.setCall(getframe(0).f_code.co_name, data)
+    def on_chat_unpin_announcement(self, data): self.setCall(getframe(0).f_code.co_name, data)
+    def on_chat_tipping_enabled(self, data): self.setCall(getframe(0).f_code.co_name, data)
+    def on_chat_tipping_disabled(self, data): self.setCall(getframe(0).f_code.co_name, data)
+    def on_timestamp_message(self, data): self.setCall(getframe(0).f_code.co_name, data)
 
-    def on_strike_message(self, data):
-        self.setCall(getframe(0).f_code.co_name, data)
+    def on_welcome_message(self, data): self.setCall(getframe(0).f_code.co_name, data)
+    def on_invite_message(self, data): self.setCall(getframe(0).f_code.co_name, data)
 
-    def on_voice_message(self, data):
-        self.setCall(getframe(0).f_code.co_name, data)
+    def on_user_typing_start(self, data): self.call(getframe(0).f_code.co_name, UsersActions(data).UsersActions)
+    def on_user_typing_end(self, data): self.call(getframe(0).f_code.co_name, UsersActions(data).UsersActions)
+    def on_online_users_update(self, data): self.call(getframe(0).f_code.co_name, UsersActions(data).UsersActions)
 
-    def on_sticker_message(self, data):
-        self.setCall(getframe(0).f_code.co_name, data)
-
-    def TYPE_USER_SHARE_EXURL(self, data):
-        self.setCall(getframe(0).f_code.co_name, data)
-
-    def TYPE_USER_SHARE_USER(self, data):
-        self.setCall(getframe(0).f_code.co_name, data)
-
-    def on_voice_chat_not_answered(self, data):
-        self.setCall(getframe(0).f_code.co_name, data)
-
-    def on_voice_chat_not_cancelled(self, data):
-        self.setCall(getframe(0).f_code.co_name, data)
-
-    def on_voice_chat_not_declined(self, data):
-        self.setCall(getframe(0).f_code.co_name, data)
-
-    def on_video_chat_not_answered(self, data):
-        self.setCall(getframe(0).f_code.co_name, data)
-
-    def on_video_chat_not_cancelled(self, data):
-        self.setCall(getframe(0).f_code.co_name, data)
-
-    def on_video_chat_not_declined(self, data):
-        self.setCall(getframe(0).f_code.co_name, data)
-
-    def on_avatar_chat_not_answered(self, data):
-        self.setCall(getframe(0).f_code.co_name, data)
-
-    def on_avatar_chat_not_cancelled(self, data):
-        self.setCall(getframe(0).f_code.co_name, data)
-
-    def on_avatar_chat_not_declined(self, data):
-        self.setCall(getframe(0).f_code.co_name, data)
-
-    def on_delete_message(self, data):
-        self.setCall(getframe(0).f_code.co_name, data)
-
-    def on_group_member_join(self, data):
-        self.setCall(getframe(0).f_code.co_name, data)
-
-    def on_group_member_leave(self, data):
-        self.setCall(getframe(0).f_code.co_name, data)
-
-    def on_chat_invite(self, data):
-        self.setCall(getframe(0).f_code.co_name, data)
-
-    def on_chat_background_changed(self, data):
-        self.setCall(getframe(0).f_code.co_name, data)
-
-    def on_chat_title_changed(self, data):
-        self.setCall(getframe(0).f_code.co_name, data)
-
-    def on_chat_icon_changed(self, data):
-        self.setCall(getframe(0).f_code.co_name, data)
-
-    def on_voice_chat_start(self, data):
-        self.setCall(getframe(0).f_code.co_name, data)
-
-    def on_video_chat_start(self, data):
-        self.setCall(getframe(0).f_code.co_name, data)
-
-    def on_avatar_chat_start(self, data):
-        self.setCall(getframe(0).f_code.co_name, data)
-
-    def on_voice_chat_end(self, data):
-        self.setCall(getframe(0).f_code.co_name, data)
-
-    def on_video_chat_end(self, data):
-        self.setCall(getframe(0).f_code.co_name, data)
-
-    def on_avatar_chat_end(self, data):
-        self.setCall(getframe(0).f_code.co_name, data)
-
-    def on_chat_content_changed(self, data):
-        self.setCall(getframe(0).f_code.co_name, data)
-
-    def on_screen_room_start(self, data):
-        self.setCall(getframe(0).f_code.co_name, data)
-
-    def on_screen_room_end(self, data):
-        self.setCall(getframe(0).f_code.co_name, data)
-
-    def on_chat_host_transfered(self, data):
-        self.setCall(getframe(0).f_code.co_name, data)
-
-    def on_text_message_force_removed(self, data):
-        self.setCall(getframe(0).f_code.co_name, data)
-
-    def on_chat_removed_message(self, data):
-        self.setCall(getframe(0).f_code.co_name, data)
-
-    def on_text_message_removed_by_admin(self, data):
-        self.setCall(getframe(0).f_code.co_name, data)
-
-    def on_chat_tip(self, data):
-        self.setCall(getframe(0).f_code.co_name, data)
-
-    def on_chat_pin_announcement(self, data):
-        self.setCall(getframe(0).f_code.co_name, data)
-
-    def on_voice_chat_permission_open_to_everyone(self, data):
-        self.setCall(getframe(0).f_code.co_name, data)
-
-    def on_voice_chat_permission_invited_and_requested(self, data):
-        self.setCall(getframe(0).f_code.co_name, data)
-
-    def on_voice_chat_permission_invite_only(self, data):
-        self.setCall(getframe(0).f_code.co_name, data)
-
-    def on_chat_view_only_enabled(self, data):
-        self.setCall(getframe(0).f_code.co_name, data)
-
-    def on_chat_view_only_disabled(self, data):
-        self.setCall(getframe(0).f_code.co_name, data)
-
-    def on_chat_unpin_announcement(self, data):
-        self.setCall(getframe(0).f_code.co_name, data)
-
-    def on_chat_tipping_enabled(self, data):
-        self.setCall(getframe(0).f_code.co_name, data)
-
-    def on_chat_tipping_disabled(self, data):
-        self.setCall(getframe(0).f_code.co_name, data)
-
-    def on_timestamp_message(self, data):
-        self.setCall(getframe(0).f_code.co_name, data)
-
-    def on_welcome_message(self, data):
-        self.setCall(getframe(0).f_code.co_name, data)
-
-    def on_invite_message(self, data):
-        self.setCall(getframe(0).f_code.co_name, data)
-
-    def on_user_typing_start(self, data):
-        self.call(getframe(0).f_code.co_name, UsersActions(data).UsersActions)
-
-    def on_user_typing_end(self, data):
-        self.call(getframe(0).f_code.co_name, UsersActions(data).UsersActions)
-
-    def on_online_users_update(self, data):
-        self.call(getframe(0).f_code.co_name, UsersActions(data).UsersActions)
-
-    def default(self, data):
-        self.call(getframe(0).f_code.co_name, data)
+    def default(self, data): self.call(getframe(0).f_code.co_name, data)
 
 
 class SetAction:
