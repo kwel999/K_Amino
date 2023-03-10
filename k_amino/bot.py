@@ -1,6 +1,6 @@
 from easy_events import Events, Parameters
 
-from .local import Local
+from .local import SubClient
 from .acm import Acm
 
 
@@ -21,7 +21,7 @@ class Bot(Events):
             if k != "json":
                 setattr(data, k, v)
 
-        data.subClient = data.local = Local(comId=data.comId, acm=True)
+        data.subClient = data.local = SubClient(comId=data.comId, acm=True)
 
         data.authorId = data.message.author.userId
         data.authorName = data.message.author.nickname

@@ -11,11 +11,11 @@ from .lib.sessions import Session
 from .acm import Acm
 
 
-class Local(Acm, Session):
+class SubClient(Acm, Session):
     def __init__(self, comId: str, proxies: dict = None, acm: bool = False):
         self.proxies = proxies
         self.comId = comId
-        
+
         if acm:
             Acm.__init__(self, comId=self.comId, proxies=self.proxies)
         else:
