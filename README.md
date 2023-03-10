@@ -1,5 +1,3 @@
-# k_amino
-
 ## k_amino
 k_amino is unofficial client for [Aminoapps](https://aminoapps.com/) API in Python.
 
@@ -22,6 +20,22 @@ and to get new updates and changes
 - Have alot of useful functions
 
 ## Examples
+
+#### Bot Support
+```py
+from k_amino import Client
+
+
+client = Client(bot=True)
+client.login("< email >", "< password >")
+
+
+@client.command()
+def test(data, ok: str = "ok"):
+    data.subClient.send_message(data.chatId, f"Test is {ok}!")
+```
+
+
 #### Get SessionID
 ```py
 import k_amino
