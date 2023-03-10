@@ -21,10 +21,10 @@ class Bot(Events):
             if k != "json":
                 setattr(data, k, v)
 
-        data.subClient = Local(comId=data.comId, acm=True)
+        data.subClient = data.local = Local(comId=data.comId, acm=True)
 
         data.authorId = data.message.author.userId
-        data.author = data.message.author.nickname
+        data.authorName = data.message.author.nickname
         data.messageId = data.message.messageId
         data.authorIcon = data.message.author.icon
 
