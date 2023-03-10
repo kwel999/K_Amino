@@ -1155,14 +1155,14 @@ class SubClient(Acm, Session):
             "uidList": asistent_id,
             "timestamp": int(timestamp() * 1000)
         }
-        
+
          req = self.postRequest(f"/x{self.comId}/s/chat/thread/{chatId}/co-host", data)
          return Json(req)
 
 
     def del_cohost(self, chatId : str, userId : str):
            req = self.deleteRequest(f"/x{self.comId}/s/chat/thread/{chatId}/co-host/{userId}")
-           return Json(req) 
+           return Json(req)
 
     def get_quizzes(self, quizzesType: str = "recent", start: int = 0, size: int = 25):
         link = {

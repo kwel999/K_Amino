@@ -606,20 +606,20 @@ class Client(Wss, Session):
         return Json(req)
 
     def invise_invite(self, chatId: str, userId: Union[str, list]):
-        
+
         """
             Invite users in your room global
-                arguments: 
+                arguments:
                     userId: id object for users
                     chatId: id object for chats
-                
+
                 use as:
                     chat_info = client.get_from_link(input("chat link:  "))
                     chat_id = chat_info.objectId
                     # need function for invite user objext
-                    
+
       """
-        
+
         if isinstance(userId, str): userIds = [userId]
         elif isinstance(userId, list): userIds = userId
         else: raise exceptions.WrongType
@@ -630,7 +630,7 @@ class Client(Wss, Session):
         }
 
         req = self.postRequest(f"/g/s/chat/thread/{chatId}/member/invite", data)
-        return Json(req) 
+        return Json(req)
 
     def block(self, userId: str):
         req = self.postRequest(f"/g/s/block/{userId}")

@@ -6,7 +6,10 @@ from .acm import Acm
 
 class Bot(Events):
     def __init__(self, prefix: str = "!"):
-        Events.__init__(self, prefix=prefix, str_only=True, first_parameter_object=True)
+        try:
+            Events.__init__(self, prefix=prefix, str_only=True, first_parameter_object=True, default_event=False)
+        except Exception:
+            Events.__init__(self, prefix=prefix, str_only=True, first_parameter_object=True)
 
         # to make @client.command()
         self.command = self.add_event
