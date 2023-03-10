@@ -1,11 +1,13 @@
-import pathlib
 from setuptools import setup, find_packages
+from k_amino import __version__
 
-README = (pathlib.Path(__file__).parent / "README.md").read_text()
+with open("README.md", "r") as stream:
+    README = stream.read()
+
 
 setup(
-    name="kamino",
-    version="1.0.0",
+    name="k-amino.py",
+    version=__version__,
     url="https://github.com/kwel999/KAmino",
     download_url="https://github.com/kwel999/KAmino/archive/refs/heads/main.zip",
     description="Amino Bots with python!",
@@ -13,7 +15,7 @@ setup(
     long_description_content_type="text/markdown",
     author="KWEL",
     author_email="itskwel999@gmail.com",
-    license="MIT",
+    license="Apache",
     keywords=[
         "api",
         "python",
@@ -47,6 +49,7 @@ setup(
         "websocket-client==1.3.1",
         "websockets",
         "ujson",
+        "easy-events>=2.6.0"
     ],
     setup_requires=["wheel"],
     packages=find_packages(),
