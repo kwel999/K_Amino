@@ -2,7 +2,7 @@
 k_amino is unofficial client for [Aminoapps](https://aminoapps.com/) API in Python.
 
 ## Installation
-You can use either `python3 setup.py install` or `pip3 install k_amino` to install. This module is tested on Python 3.9+.
+You can use either `python3 setup.py install` or `pip3 install k_amino.py` to install. This module is tested on Python 3.9+.
 
 ## Contributing
 k_amino is open source module, anyone can contribute. Please see the [Github Repository](https://github.com/Kwel999/k_amino)
