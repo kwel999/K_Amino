@@ -1,9 +1,9 @@
 from .util import generateDevice, generateSig, uuidString
 
-# Not Required for normal samino only for async (for now at least)
+
 # IDK if async version works either so ima leave it for later :eyes:
 userId = None
-staticDevice = None 
+staticDevice = None
 
 class Headers:
     def __init__(self, header_device: str = None):
@@ -19,7 +19,7 @@ class Headers:
             "Connection": "Keep-Alive",
             "Accept-Encoding": "gzip",
         }
-        
+
         self.web_headers = {
             "accept": "*/*",
             "accept-encoding": "gzip, deflate, br",
@@ -36,12 +36,12 @@ class Headers:
             "NDCDEVICEID": staticDevice if staticDevice else generateDevice(),
             "Content-Type": "application/x-www-form-urlencoded"
         })
-        
+
         if data: self.app_headers.update({"NDC-MSG-SIG": generateSig(data), "Content-Type": "application/json; charset=utf-8"})
         if updateDevice: self.app_headers.update({"NDCDEVICEID": updateDevice})
         if lang: self.app_headers.update({"NDCLANG": lang[:lang.index("-")], "Accept-Language": lang})
 
-        if sid: 
+        if sid:
             self.web_headers.update({"cookie": sid})
             self.app_headers.update({"NDCAUTH": sid})
 
