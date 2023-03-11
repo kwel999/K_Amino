@@ -8,7 +8,7 @@ from .sockets import *
 from .bot import *
 
 
-__version__ = "1.0.6"
+__version__ = "1.0.7"
 
 
 __newest__ = loads(get("https://pypi.python.org/pypi/k-amino.py/json").text)["info"]["version"]
