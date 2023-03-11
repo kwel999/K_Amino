@@ -49,6 +49,7 @@ setup(
         "websocket-client==1.3.1",
         "websockets",
         "ujson",
+        "requests",
         "easy-events>=2.6.0"
     ],
     setup_requires=["wheel"],
