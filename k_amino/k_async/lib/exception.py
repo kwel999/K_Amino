@@ -1,5 +1,4 @@
 # From https://github.com/okok7711/AminoAcid/blob/master/aminoacid/exceptions.py
-# Modified By SirLez
 
 
 class AminoBaseException(Exception):
