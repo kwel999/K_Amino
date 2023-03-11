@@ -19,7 +19,7 @@ class Client(Wss, Session):
         Wss.__init__(self, self, trace=self.trace, is_bot=bot)
         Session.__init__(self, proxies=self.proxies, staticDevice=self.deviceId)
 
-    def change_lang(self, lang: str = "ar-SY"):
+    def change_lang(self, lang: str = "en"):
         self.updateHeaders(lang=lang)
 
     def sid_login(self, sid: str, socket = False):
@@ -663,33 +663,30 @@ class Client(Wss, Session):
         req = self.getRequest(link)
         return ItemList(req["itemList"]).ItemList
 
-    def get_announcements(self, lang: str = "ar", start: int = 0, size: int = 20):
+    def get_announcements(self, lang: str = "en", start: int = 0, size: int = 20):
         req = self.getRequest(
             f"/g/s/announcement?language={lang}&start={start}&size={size}"
         )
         return BlogList(req["blogList"]).BlogList
 
-    def get_discover(
-        self,
-        discoverType: str = "discover",
-        category: str = "customized",
-        size: int = 25,
-        pagingType: str = "t",
-    ):
-        link = (
-            f"/g/s/topic/0/feed/community"
-            f"?type={discoverType}"
-            f"&categoryKey={category}"
-            f"&moduleId=64da14e8-0845-47bf-946a-17403bd6aa17"
-            f"&size={size}"
-            f"&pagingType={pagingType}"
-        )
-
-        req = self.getRequest(link)
+    def get_public_ndc(self, content_language: str = "en", size: int = 25):
+        """
+             for content_language:
+                 content_language:
+                     en:  english communities
+                     de:  deuth communities
+                     ru:  russian communities
+                     es: espaniol communities
+                     pt: portuguse communities
+                     fr: francias communities
+                     ar:  arabic communities
+                     
+                   """          
+        req = self.getRequest(f"/g/s/topic/0/feed/community?language={content_language}&type=web-explore&categoryKey=recommendation&size={size}&pagingType=t")
         return CommunityList(req["communityList"]).CommunityList
 
     def search_community(
-        self, word: str, lang: str = "ar", start: int = 0, size: int = 25
+        self, word: str, lang: str = "en", start: int = 0, size: int = 25
     ):
         req = self.getRequest(
             f"/g/s/community/search?q={word}&language={lang}&completeKeyword=1&start={start}&size={size}"
