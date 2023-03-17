@@ -606,18 +606,18 @@ class Client(Wss, Session):
         return Json(req)
 
     def get_invise_users(self, master_type = "newest", start: int = 0, size: int = 25):
-        
+
         """
             function for masteringInvite:
                 master_type:
-                    new/newest : invited new usres from all ndcs or 
+                    new/newest : invited new usres from all ndcs or
                     online : invited online users from all ndcs
         """
-        
+
         req = self.getRequest(
             f"/g/s/user-profile?type={master_type}&start={start}&size={size}"
         )
-        return UserProfileList(req["userProfileList"]).UserProfileList 
+        return UserProfileList(req["userProfileList"]).UserProfileList
 
     def invise_invite(self, chatId: str, userId: Union[str, list]):
 
@@ -694,8 +694,8 @@ class Client(Wss, Session):
                      pt: portuguse communities
                      fr: francias communities
                      ar:  arabic communities
-                     
-                   """          
+
+                   """
         req = self.getRequest(f"/g/s/topic/0/feed/community?language={content_language}&type=web-explore&categoryKey=recommendation&size={size}&pagingType=t")
         return CommunityList(req["communityList"]).CommunityList
 
