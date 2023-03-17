@@ -50,8 +50,7 @@ setup(
         "websockets",
         "ujson",
         "requests",
-        "easy-events>=2.6.0",
-        "httpx"
+        "easy-events>=2.6.0"
     ],
     setup_requires=["wheel"],
     packages=find_packages(),
