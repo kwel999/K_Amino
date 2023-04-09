@@ -14,7 +14,11 @@ from ..lib.objects import *
 from .bot import AsyncBot as Bot
 from easy_events import AsyncEvents
 
-asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+try:
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+except Exception:
+    pass
+
 
 class AsyncCallbacks(Bot):
     def __init__(self, is_bot: bool = False, prefix: str = "!"):
