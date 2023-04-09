@@ -7,16 +7,13 @@ from typing import Union
 
 import ujson as json
 import websocket
-import asyncio
 
 from ..lib import *
 from ..lib.objects import *
-from .bot import AsyncBot as Bot
-from easy_events import AsyncEvents
+from .bot import Bot
 
-asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
-class AsyncCallbacks(Bot):
+class Callbacks(Bot):
     def __init__(self, is_bot: bool = False, prefix: str = "!"):
         Bot.__init__(self, prefix=prefix)
 
@@ -98,26 +95,26 @@ class AsyncCallbacks(Bot):
             "users-end-recording-at": self.on_voice_chat_end,
         }
 
-    async def _resolve_payload(self, data):
+    def _resolve_payload(self, data):
         key = f"{data['o']['payload']['notifType']}"
-        return await self.notif_methods.get(key)(data)
+        return self.notif_methods.get(key)(data)
 
-    async def _resolve_chat_message(self, data):
+    def _resolve_chat_message(self, data):
         key = f"{data['o']['chatMessage']['type']}:{data['o']['chatMessage'].get('mediaType', 0)}"
-        return await self.chat_methods.get(key)(data)
+        return self.chat_methods.get(key)(data)
 
-    async def _resolve_topics(self, data):
+    def _resolve_topics(self, data):
         key = str(data["o"].get("topic", 0)).split(":")[2]
-        return await self.topics.get(key)(data)
+        return self.topics.get(key)(data)
 
-    async def resolve(self, data):
+    def resolve(self, data):
         data = json.loads(data)
-        return await self.methods.get(data.get("t"))(data)
+        return self.methods.get(data["t"])(data)
 
-    async def call(self, callType, data):
+    def call(self, callType, data):
         if self.handlers.get(callType):
             for handler in self.handlers[callType]:
-                await handler(data)
+                handler(data)
 
     def event(self, eventType):
         def registerHandler(handler):
@@ -129,77 +126,77 @@ class AsyncCallbacks(Bot):
 
         return registerHandler
 
-    async def setCall(self, name, data):
-        await self.call(name, Event(data["o"]).Event)
+    def setCall(self, name, data):
+        self.call(name, Event(data["o"]).Event)
 
-    async def on_text_message(self, data):
+    def on_text_message(self, data):
         if self.is_bot:
             new_data = Event(data["o"]).Event
             new_data = self.build_parameters(new_data)
-            await self.trigger(new_data, str_only=True)
+            self.trigger(new_data, str_only=True, thread=True)
 
-        await self.setCall(getframe(0).f_code.co_name, data)
+        self.setCall(getframe(0).f_code.co_name, data)
 
-    async def on_member_set_you_host(self, data): self.call(getframe(0).f_code.co_name, Payload(data["o"]).Payload)
-    async def on_member_remove_you_cohost(self, data): self.call(getframe(0).f_code.co_name, Payload(data["o"]).Payload)
-    async def on_member_set_you_cohost(self, data): self.call(getframe(0).f_code.co_name, Payload(data["o"]).Payload)
+    def on_member_set_you_host(self, data): self.call(getframe(0).f_code.co_name, Payload(data["o"]).Payload)
+    def on_member_remove_you_cohost(self, data): self.call(getframe(0).f_code.co_name, Payload(data["o"]).Payload)
+    def on_member_set_you_cohost(self, data): self.call(getframe(0).f_code.co_name, Payload(data["o"]).Payload)
 
-    async def on_image_message(self, data): await self.setCall(getframe(0).f_code.co_name, data)
-    async def on_youtube_message(self, data): await self.setCall(getframe(0).f_code.co_name, data)
-    async def on_strike_message(self, data): await self.setCall(getframe(0).f_code.co_name, data)
-    async def on_voice_message(self, data): await self.setCall(getframe(0).f_code.co_name, data)
-    async def on_sticker_message(self, data): await self.setCall(getframe(0).f_code.co_name, data)
-    async def TYPE_USER_SHARE_EXURL(self, data): await self.setCall(getframe(0).f_code.co_name, data)
-    async def TYPE_USER_SHARE_USER(self, data): await self.setCall(getframe(0).f_code.co_name, data)
-    async def on_voice_chat_not_answered(self, data): await self.setCall(getframe(0).f_code.co_name, data)
-    async def on_voice_chat_not_cancelled(self, data): await self.setCall(getframe(0).f_code.co_name, data)
-    async def on_voice_chat_not_declined(self, data): await self.setCall(getframe(0).f_code.co_name, data)
-    async def on_video_chat_not_answered(self, data): await self.setCall(getframe(0).f_code.co_name, data)
-    async def on_video_chat_not_cancelled(self, data): await self.setCall(getframe(0).f_code.co_name, data)
-    async def on_video_chat_not_declined(self, data): await self.setCall(getframe(0).f_code.co_name, data)
-    async def on_avatar_chat_not_answered(self, data): await self.setCall(getframe(0).f_code.co_name, data)
-    async def on_avatar_chat_not_cancelled(self, data): await self.setCall(getframe(0).f_code.co_name, data)
-    async def on_avatar_chat_not_declined(self, data): await self.setCall(getframe(0).f_code.co_name, data)
-    async def on_delete_message(self, data): await self.setCall(getframe(0).f_code.co_name, data)
-    async def on_group_member_join(self, data): await self.setCall(getframe(0).f_code.co_name, data)
-    async def on_group_member_leave(self, data): await self.setCall(getframe(0).f_code.co_name, data)
-    async def on_chat_invite(self, data): await self.setCall(getframe(0).f_code.co_name, data)
-    async def on_chat_background_changed(self, data): await self.setCall(getframe(0).f_code.co_name, data)
-    async def on_chat_title_changed(self, data): await self.setCall(getframe(0).f_code.co_name, data)
-    async def on_chat_icon_changed(self, data): await self.setCall(getframe(0).f_code.co_name, data)
-    async def on_voice_chat_start(self, data): await self.setCall(getframe(0).f_code.co_name, data)
-    async def on_video_chat_start(self, data): await self.setCall(getframe(0).f_code.co_name, data)
-    async def on_avatar_chat_start(self, data): await self.setCall(getframe(0).f_code.co_name, data)
-    async def on_voice_chat_end(self, data): await self.setCall(getframe(0).f_code.co_name, data)
-    async def on_video_chat_end(self, data): await self.setCall(getframe(0).f_code.co_name, data)
-    async def on_avatar_chat_end(self, data): await self.setCall(getframe(0).f_code.co_name, data)
-    async def on_chat_content_changed(self, data): await self.setCall(getframe(0).f_code.co_name, data)
-    async def on_screen_room_start(self, data): await self.setCall(getframe(0).f_code.co_name, data)
-    async def on_screen_room_end(self, data): await self.setCall(getframe(0).f_code.co_name, data)
-    async def on_chat_host_transfered(self, data): await self.setCall(getframe(0).f_code.co_name, data)
-    async def on_text_message_force_removed(self, data): await self.setCall(getframe(0).f_code.co_name, data)
-    async def on_chat_removed_message(self, data): await self.setCall(getframe(0).f_code.co_name, data)
-    async def on_text_message_removed_by_admin(self, data): await self.setCall(getframe(0).f_code.co_name, data)
-    async def on_chat_tip(self, data): await self.setCall(getframe(0).f_code.co_name, data)
-    async def on_chat_pin_announcement(self, data): await self.setCall(getframe(0).f_code.co_name, data)
-    async def on_voice_chat_permission_open_to_everyone(self, data): await self.setCall(getframe(0).f_code.co_name, data)
-    async def on_voice_chat_permission_invited_and_requested(self, data): await self.setCall(getframe(0).f_code.co_name, data)
-    async def on_voice_chat_permission_invite_only(self, data): await self.setCall(getframe(0).f_code.co_name, data)
-    async def on_chat_view_only_enabled(self, data): await self.setCall(getframe(0).f_code.co_name, data)
-    async def on_chat_view_only_disabled(self, data): await self.setCall(getframe(0).f_code.co_name, data)
-    async def on_chat_unpin_announcement(self, data): await self.setCall(getframe(0).f_code.co_name, data)
-    async def on_chat_tipping_enabled(self, data): await self.setCall(getframe(0).f_code.co_name, data)
-    async def on_chat_tipping_disabled(self, data): await self.setCall(getframe(0).f_code.co_name, data)
-    async def on_timestamp_message(self, data): await self.setCall(getframe(0).f_code.co_name, data)
+    def on_image_message(self, data): self.setCall(getframe(0).f_code.co_name, data)
+    def on_youtube_message(self, data): self.setCall(getframe(0).f_code.co_name, data)
+    def on_strike_message(self, data): self.setCall(getframe(0).f_code.co_name, data)
+    def on_voice_message(self, data): self.setCall(getframe(0).f_code.co_name, data)
+    def on_sticker_message(self, data): self.setCall(getframe(0).f_code.co_name, data)
+    def TYPE_USER_SHARE_EXURL(self, data): self.setCall(getframe(0).f_code.co_name, data)
+    def TYPE_USER_SHARE_USER(self, data): self.setCall(getframe(0).f_code.co_name, data)
+    def on_voice_chat_not_answered(self, data): self.setCall(getframe(0).f_code.co_name, data)
+    def on_voice_chat_not_cancelled(self, data): self.setCall(getframe(0).f_code.co_name, data)
+    def on_voice_chat_not_declined(self, data): self.setCall(getframe(0).f_code.co_name, data)
+    def on_video_chat_not_answered(self, data): self.setCall(getframe(0).f_code.co_name, data)
+    def on_video_chat_not_cancelled(self, data): self.setCall(getframe(0).f_code.co_name, data)
+    def on_video_chat_not_declined(self, data): self.setCall(getframe(0).f_code.co_name, data)
+    def on_avatar_chat_not_answered(self, data): self.setCall(getframe(0).f_code.co_name, data)
+    def on_avatar_chat_not_cancelled(self, data): self.setCall(getframe(0).f_code.co_name, data)
+    def on_avatar_chat_not_declined(self, data): self.setCall(getframe(0).f_code.co_name, data)
+    def on_delete_message(self, data): self.setCall(getframe(0).f_code.co_name, data)
+    def on_group_member_join(self, data): self.setCall(getframe(0).f_code.co_name, data)
+    def on_group_member_leave(self, data): self.setCall(getframe(0).f_code.co_name, data)
+    def on_chat_invite(self, data): self.setCall(getframe(0).f_code.co_name, data)
+    def on_chat_background_changed(self, data): self.setCall(getframe(0).f_code.co_name, data)
+    def on_chat_title_changed(self, data): self.setCall(getframe(0).f_code.co_name, data)
+    def on_chat_icon_changed(self, data): self.setCall(getframe(0).f_code.co_name, data)
+    def on_voice_chat_start(self, data): self.setCall(getframe(0).f_code.co_name, data)
+    def on_video_chat_start(self, data): self.setCall(getframe(0).f_code.co_name, data)
+    def on_avatar_chat_start(self, data): self.setCall(getframe(0).f_code.co_name, data)
+    def on_voice_chat_end(self, data): self.setCall(getframe(0).f_code.co_name, data)
+    def on_video_chat_end(self, data): self.setCall(getframe(0).f_code.co_name, data)
+    def on_avatar_chat_end(self, data): self.setCall(getframe(0).f_code.co_name, data)
+    def on_chat_content_changed(self, data): self.setCall(getframe(0).f_code.co_name, data)
+    def on_screen_room_start(self, data): self.setCall(getframe(0).f_code.co_name, data)
+    def on_screen_room_end(self, data): self.setCall(getframe(0).f_code.co_name, data)
+    def on_chat_host_transfered(self, data): self.setCall(getframe(0).f_code.co_name, data)
+    def on_text_message_force_removed(self, data): self.setCall(getframe(0).f_code.co_name, data)
+    def on_chat_removed_message(self, data): self.setCall(getframe(0).f_code.co_name, data)
+    def on_text_message_removed_by_admin(self, data): self.setCall(getframe(0).f_code.co_name, data)
+    def on_chat_tip(self, data): self.setCall(getframe(0).f_code.co_name, data)
+    def on_chat_pin_announcement(self, data): self.setCall(getframe(0).f_code.co_name, data)
+    def on_voice_chat_permission_open_to_everyone(self, data): self.setCall(getframe(0).f_code.co_name, data)
+    def on_voice_chat_permission_invited_and_requested(self, data): self.setCall(getframe(0).f_code.co_name, data)
+    def on_voice_chat_permission_invite_only(self, data): self.setCall(getframe(0).f_code.co_name, data)
+    def on_chat_view_only_enabled(self, data): self.setCall(getframe(0).f_code.co_name, data)
+    def on_chat_view_only_disabled(self, data): self.setCall(getframe(0).f_code.co_name, data)
+    def on_chat_unpin_announcement(self, data): self.setCall(getframe(0).f_code.co_name, data)
+    def on_chat_tipping_enabled(self, data): self.setCall(getframe(0).f_code.co_name, data)
+    def on_chat_tipping_disabled(self, data): self.setCall(getframe(0).f_code.co_name, data)
+    def on_timestamp_message(self, data): self.setCall(getframe(0).f_code.co_name, data)
 
-    async def on_welcome_message(self, data): await self.setCall(getframe(0).f_code.co_name, data)
-    async def on_invite_message(self, data): await self.setCall(getframe(0).f_code.co_name, data)
+    def on_welcome_message(self, data): self.setCall(getframe(0).f_code.co_name, data)
+    def on_invite_message(self, data): self.setCall(getframe(0).f_code.co_name, data)
 
-    async def on_user_typing_start(self, data): await self.call(getframe(0).f_code.co_name, UsersActions(data).UsersActions)
-    async def on_user_typing_end(self, data): await self.call(getframe(0).f_code.co_name, UsersActions(data).UsersActions)
-    async def on_online_users_update(self, data): await self.call(getframe(0).f_code.co_name, UsersActions(data).UsersActions)
+    def on_user_typing_start(self, data): self.call(getframe(0).f_code.co_name, UsersActions(data).UsersActions)
+    def on_user_typing_end(self, data): self.call(getframe(0).f_code.co_name, UsersActions(data).UsersActions)
+    def on_online_users_update(self, data): self.call(getframe(0).f_code.co_name, UsersActions(data).UsersActions)
 
-    async def default(self, data): await self.call(getframe(0).f_code.co_name, data)
+    def default(self, data): self.call(getframe(0).f_code.co_name, data)
 
 
 class SetAction:
@@ -374,7 +371,7 @@ class WssClient:
     def __init__(self, wss):
         self.wss = wss
 
-    async def joinVoiceChat(self, comId: str, chatId: str, joinType: int = 1):
+    def joinVoiceChat(self, comId: str, chatId: str, joinType: int = 1):
 
         data = {
             "o": {
@@ -385,10 +382,10 @@ class WssClient:
             },
             "t": 112,
         }
-        asyncio.sleep(2.2)
-        await self.wss.send(data)
+        timer.sleep(2.2)
+        self.wss.send(data)
 
-    async def joinVideoChat(self, comId: str, chatId: str, joinType: int = 1):
+    def joinVideoChat(self, comId: str, chatId: str, joinType: int = 1):
         """
         Join The Video Chat
 
@@ -407,10 +404,10 @@ class WssClient:
             },
             "t": 108,
         }
-        asyncio.sleep(2.2)
-        await self.wss.send(data)
+        timer.sleep(2.2)
+        self.wss.send(data)
 
-    async def startVoiceChat(self, comId, chatId: str, joinType: int = 1):
+    def startVoiceChat(self, comId, chatId: str, joinType: int = 1):
         """
         Start The Voice Chat
 
@@ -428,8 +425,8 @@ class WssClient:
             },
             "t": 112,
         }
-        asyncio.sleep(2.2)
-        await self.wss.send(data)
+        timer.sleep(2.2)
+        self.wss.send(data)
         data = {
             "o": {
                 "ndcId": comId,
@@ -439,10 +436,10 @@ class WssClient:
             },
             "t": 108,
         }
-        asyncio.sleep(2.2)
-        await self.wss.send(data)
+        timer.sleep(2.2)
+        self.wss.send(data)
 
-    async def endVoiceChat(self, comId: str, chatId: str, leaveType: int = 2):
+    def endVoiceChat(self, comId: str, chatId: str, leaveType: int = 2):
         """
         End The Voice Chat
 
@@ -460,10 +457,10 @@ class WssClient:
             },
             "t": 112,
         }
-        asyncio.sleep(2.2)
-        await self.wss.send(data)
+        timer.sleep(2.2)
+        self.wss.send(data)
 
-    async def joinVideoChatAsSpectator(self, comId: str, chatId: str):
+    def joinVideoChatAsSpectator(self, comId: str, chatId: str):
         """
         Join Video Chat As Spectator
 
@@ -480,10 +477,10 @@ class WssClient:
             },
             "t": 112,
         }
-        asyncio.sleep(2.2)
-        await self.wss.send(data)
+        timer.sleep(2.2)
+        self.wss.send(data)
 
-    async def threadJoin(self, comId: str, chatId: str):
+    def threadJoin(self, comId: str, chatId: str):
         data = {
             "o": {
                 "ndcId": int(comId),
@@ -493,9 +490,9 @@ class WssClient:
             },
             "t": 112,
         }
-        await self.wss.send(data)
+        self.wss.send(data)
 
-    async def channelJoin(self, comId: str, chatId: str):
+    def channelJoin(self, comId: str, chatId: str):
         data = {
             "o": {
                 "ndcId": int(comId),
@@ -505,9 +502,9 @@ class WssClient:
             },
             "t": 108,
         }
-        await self.wss.send(data)
+        self.wss.send(data)
 
-    async def GetUsersActions(self, comId: str = None, path: int = 0, chatId: str = None):
+    def GetUsersActions(self, comId: str = None, path: int = 0, chatId: str = None):
         """
         Get users actions:
         This functions gets certain socket actions happening
@@ -553,13 +550,12 @@ class WssClient:
             "t": 300,
         }
 
-        asyncio.sleep(2.2)
-        await self.wss.send(data)
+        timer.sleep(2.2)
+        self.wss.send(data)
 
         for i in range(3):
-            data = await self.wss.receive()
-            if data:
-                return UsersActions(data=data).UsersActions
+            if self.wss.receive():
+                return UsersActions(data=self.wss.receive()).UsersActions
             else:
                 continue
 
@@ -569,10 +565,8 @@ class WssClient:
         return Actions(self.wss, comId, chatId)
 
 
-class Wss(AsyncCallbacks, WssClient, Headers):
+class Wss(Callbacks, WssClient, Headers):
     def __init__(self, client, trace: bool = False, is_bot: bool = False):
-        self.ev = AsyncEvents(str_only=False, first_parameter_object=False, default_event=False)
-        self.ev.add_event(callback=self.res, aliases=["res"], event_type="wss")
 
         self.trace = trace
         self.socket = None
@@ -581,7 +575,7 @@ class Wss(AsyncCallbacks, WssClient, Headers):
         self.isOpened = False
 
         Headers.__init__(self)
-        AsyncCallbacks.__init__(self, is_bot=is_bot)
+        Callbacks.__init__(self, is_bot=is_bot)
         WssClient.__init__(self, self)
 
         self.narvi = "https://service.narvii.com/api/v1/"
@@ -599,26 +593,21 @@ class Wss(AsyncCallbacks, WssClient, Headers):
         if self.trace:
             print("[ON-CLOSE] Sockets are closed")
 
-    async def send(self, data):
-        await self.socket.send(json.dumps(data))
+    def send(self, data):
+        self.socket.send(json.dumps(data))
 
-    async def receive(self):
+    def receive(self):
         if self.trace:
             print("[RECEIVE] returning last message")
         return self.lastMessage
 
     def on_message(self, ws, data):
         self.lastMessage = json.loads(data)
-        self.ev.add_task(data={"event": "res", "parameters": {"data": data}}, event_type="wss", str_only=False)
-        self.ev.run_task_sync()
-
+        self.resolve(data)
         if self.trace:
             print("[ON-MESSAGE] Received a message . . .")
 
-    async def res(self, data):
-        await self.resolve(data)
-
-    async def launch(self):
+    def launch(self):
         final = f"{self.client.deviceId}|{int(timer.time() * 1000)}"
         self.headers = {
             "NDCDEVICEID": self.client.deviceId,
@@ -636,18 +625,15 @@ class Wss(AsyncCallbacks, WssClient, Headers):
 
         if self.trace:
             print("[LAUNCH] Sockets starting . . . ")
-
         threading.Thread(
             target=self.socket.run_forever, kwargs={"ping_interval": 60}
         ).start()
 
-    async def close(self):
+    def close(self):
         self.socket.close()
-
         if self.trace:
             print("[CLOSE] closing socket . . .")
-
-        asyncio.sleep(1.5)
+        timer.sleep(1.5)
 
     def socket_status(self):
         print("\nSockets are OPEN\n") if self.isOpened else print(

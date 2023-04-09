@@ -1,14 +1,20 @@
 from json import loads
 from requests import get
 
-from .acm import *
-from .client import *
-from .local import *
-from .sockets import *
-from .bot import *
+from .k_sync.acm import Acm
+from .k_sync.client import Client
+from .k_sync.local import SubClient
+# from .k_sync.sockets import *
+from .k_sync.bot import Bot
+
+from .k_async.acm import AsyncAcm
+from .k_async.client import AsyncClient
+from .k_async.local import AsyncSubClient
+# from .k_async.sockets import *
+from .k_async.bot import AsyncBot
 
 
-__version__ = "1.0.8"
+__version__ = "1.1.0"
 
 
 __newest__ = loads(get("https://pypi.python.org/pypi/k-amino.py/json").text)["info"]["version"]

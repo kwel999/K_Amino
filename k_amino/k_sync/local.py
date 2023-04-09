@@ -7,11 +7,11 @@ from typing import Union, BinaryIO
 from uuid import UUID
 
 from ..lib.objects import *
-from ..lib.async_sessions import AsyncSession as Session
-from .acm import AsyncAcm as Acm
+from ..lib.sessions import Session
+from .acm import Acm
 
 
-class AsyncSubClient(Acm, Session):
+class SubClient(Acm, Session):
     def __init__(self, comId: str, proxies: dict = None, acm: bool = False):
         self.proxies = proxies
         self.comId = comId
@@ -21,25 +21,25 @@ class AsyncSubClient(Acm, Session):
         else:
             Session.__init__(self, proxies=self.proxies)
 
-    async def get_video_rep_info(self, chatId: str):
-        req = await self.getRequest(
+    def get_video_rep_info(self, chatId: str):
+        req = self.getRequest(
             f"/x{self.comId}/s/chat/thread/{chatId}/avchat-reputation"
         )
         return RepInfo(req)
 
-    async def claim_video_rep(self, chatId: str):
-        req = await self.postRequest(
+    def claim_video_rep(self, chatId: str):
+        req = self.postRequest(
             f"/x{self.comId}/s/chat/thread/{chatId}/avchat-reputation"
         )
         return RepInfo(req)
 
-    async def join_chat(self, chatId: str = None):
-        req = await self.postRequest(
+    def join_chat(self, chatId: str = None):
+        req = self.postRequest(
             f"/x{self.comId}/s/chat/thread/{chatId}/member/{self.uid}"
         )
         return Json(req)
 
-    async def upload_media(self, file: BinaryIO, fileType: str):
+    def upload_media(self, file: BinaryIO, fileType: str):
         if fileType == "audio":
             fileType = "audio/aac"
         elif fileType == "image":
@@ -50,92 +50,92 @@ class AsyncSubClient(Acm, Session):
         data = file.read()
         newHeaders = {"content-type": fileType, "content-length": str(len(data))}
 
-        req = await self.postRequest("/g/s/media/upload", data=data, newHeaders=newHeaders)
+        req = self.postRequest("/g/s/media/upload", data=data, newHeaders=newHeaders)
         return req["mediaValue"]
 
-    async def leave_chat(self, chatId: str = None):
-        req = await self.deleteRequest(
+    def leave_chat(self, chatId: str = None):
+        req = self.deleteRequest(
             f"/x{self.comId}/s/chat/thread/{chatId}/member/{self.uid}"
         )
         return Json(req)
 
-    async def get_member_following(self, userId: str = None, start: int = 0, size: int = 25):
-        req = await self.getRequest(
+    def get_member_following(self, userId: str = None, start: int = 0, size: int = 25):
+        req = self.getRequest(
             f"/x{self.comId}/s/user-profile/{userId}/joined?start={start}&size={size}"
         )
         return UserProfileList(req["userProfileList"]).UserProfileList
 
-    async def get_member_followers(self, userId: str = None, start: int = 0, size: int = 25):
-        req = await self.getRequest(
+    def get_member_followers(self, userId: str = None, start: int = 0, size: int = 25):
+        req = self.getRequest(
             f"/x{self.comId}/s/user-profile/{userId}/member?start={start}&size={size}"
         )
         return UserProfileList(req["userProfileList"]).UserProfileList
 
-    async def get_chat_threads(self, start: int = 0, size: int = 25):
-        req = await self.getRequest(
+    def get_chat_threads(self, start: int = 0, size: int = 25):
+        req = self.getRequest(
             f"/x{self.comId}/s/chat/thread?type=joined-me&start={start}&size={size}"
         )
         return ThreadList(req["threadList"]).ThreadList
 
-    async def get_member_visitors(self, userId: str, start: int = 0, size: int = 25):
-        req = await self.getRequest(
+    def get_member_visitors(self, userId: str, start: int = 0, size: int = 25):
+        req = self.getRequest(
             f"/x{self.comId}/s/user-profile/{userId}/visitors?start={start}&size={size}"
         )
         return VisitorsList(req["visitors"]).VisitorsList
 
-    async def get_chat_messages(self, chatId: str, size: int = 25):
-        req = await self.getRequest(
+    def get_chat_messages(self, chatId: str, size: int = 25):
+        req = self.getRequest(
             f"/x{self.comId}/s/chat/thread/{chatId}/message?v=2&pagingType=t&size={size}"
         )
         return MessageList(req["messageList"]).MessageList
 
-    async def get_user_info(self, userId: str):
-        req = await self.getRequest(f"/x{self.comId}/s/user-profile/{userId}")
+    def get_user_info(self, userId: str):
+        req = self.getRequest(f"/x{self.comId}/s/user-profile/{userId}")
         return UserProfile(req["userProfile"]).UserProfile
 
-    async def get_user_blogs(self, userId: str, start: int = 0, size: int = 25):
-        req = await self.getRequest(
+    def get_user_blogs(self, userId: str, start: int = 0, size: int = 25):
+        req = self.getRequest(
             f"/x{self.comId}/s/blog?type=user&q={userId}&start={start}&size={size}"
         )
         return BlogList(req["blogList"]).BlogList
 
-    async def get_user_wikis(self, userId: str, start: int = 0, size: int = 25):
-        req = await self.getRequest(
+    def get_user_wikis(self, userId: str, start: int = 0, size: int = 25):
+        req = self.getRequest(
             f"/x{self.comId}/s/item?type=user-all&start={start}&size={size}&cv=1.2&uid={userId}"
         )
         return WikiList(req["itemList"]).WikiList
 
-    async def get_all_users(self, usersType: str = "recent", start: int = 0, size: int = 25):
-        req = await self.getRequest(
+    def get_all_users(self, usersType: str = "recent", start: int = 0, size: int = 25):
+        req = self.getRequest(
             f"/x{self.comId}/s/user-profile?type={usersType}&start={start}&size={size}"
         )
         return UserProfileList(req["userProfileList"]).UserProfileList
 
-    async def get_chat_members(self, start: int = 0, size: int = 25, chatId: str = None):
-        req = await self.getRequest(
+    def get_chat_members(self, start: int = 0, size: int = 25, chatId: str = None):
+        req = self.getRequest(
             f"/x{self.comId}/s/chat/thread/{chatId}/member?start={start}&size={size}&type=default&cv=1.2"
         )
         return UserProfileList(req["memberList"]).UserProfileList
 
-    async def get_chat_info(self, chatId: str):
-        req = await self.getRequest(f"/x{self.comId}/s/chat/thread/{chatId}")
+    def get_chat_info(self, chatId: str):
+        req = self.getRequest(f"/x{self.comId}/s/chat/thread/{chatId}")
         return Thread(req["thread"]).Thread
 
-    async def get_online_users(self, start: int = 0, size: int = 25):
-        req = await self.getRequest(
+    def get_online_users(self, start: int = 0, size: int = 25):
+        req = self.getRequest(
             f"/x{self.comId}/s/live-layer?topic=ndtopic:x{self.comId}:online-members&start={start}&size={size}"
         )
         return UserProfileList(req["userProfileList"]).UserProfileList
 
-    async def get_public_chats(
+    def get_public_chats(
         self, filterType: str = "recommended", start: int = 0, size: int = 50
     ):
-        req = await self.getRequest(
+        req = self.getRequest(
             f"/x{self.comId}/s/chat/thread?type=public-all&filterType={filterType}&start={start}&size={size}"
         )
         return ThreadList(req["threadList"]).ThreadList
 
-    async def send_message(
+    def send_message(
         self,
         chatId: str,
         message: str = None,
@@ -235,10 +235,10 @@ class AsyncSubClient(Acm, Session):
             data["attachedObject"] = None
             data["extensions"] = None
 
-        req = await self.postRequest(f"/x{self.comId}/s/chat/thread/{chatId}/message", data)
+        req = self.postRequest(f"/x{self.comId}/s/chat/thread/{chatId}/message", data)
         return Json(req)
 
-    async def send_web_message(
+    def send_web_message(
         self,
         chatId: str,
         message: str = None,
@@ -267,15 +267,15 @@ class AsyncSubClient(Acm, Session):
             data["message"]["mediaType"] = 100
             data["message"]["mediaValue"] = icon
 
-        return Json(await self.postRequest("/add-chat-message", data, webRequest=True))
+        return Json(self.postRequest("/add-chat-message", data, webRequest=True))
 
-    async def unfollow(self, userId: str):
-        req = await self.postRequest(
+    def unfollow(self, userId: str):
+        req = self.postRequest(
             f"/x{self.comId}/s/user-profile/{userId}/member/{self.uid}"
         )
         return Json(req)
 
-    async def follow(self, userId: Union[str, list]):
+    def follow(self, userId: Union[str, list]):
         data = {"timestamp": int(timestamp() * 1000)}
 
         if isinstance(userId, str):
@@ -284,10 +284,10 @@ class AsyncSubClient(Acm, Session):
             link = f"/x{self.comId}/s/user-profile/{self.uid}/joined"
             data["targetUidList"] = userId
 
-        req = await self.postRequest(link, data)
+        req = self.postRequest(link, data)
         return Json(req)
 
-    async def start_chat(
+    def start_chat(
         self,
         userId: Union[str, list],
         title: str = None,
@@ -307,21 +307,21 @@ class AsyncSubClient(Acm, Session):
             "timestamp": int(timestamp() * 1000),
         }
 
-        req = await self.postRequest(f"/x{self.comId}/s/chat/thread", data)
+        req = self.postRequest(f"/x{self.comId}/s/chat/thread", data)
         return Thread(req['thread']).Thread
 
-    async def invite_to_chat(self, userId: Union[str, list], chatId: str = None):
+    def invite_to_chat(self, userId: Union[str, list], chatId: str = None):
         if isinstance(userId, str):
             userId = [userId]
 
         data = {"uids": userId, "timestamp": int(timestamp() * 1000)}
 
-        req = await self.postRequest(
+        req = self.postRequest(
             f"/x{self.comId}/s/chat/thread/{chatId}/member/invite", data=data
         )
         return Json(req)
 
-    async def edit_profile(
+    def edit_profile(
         self,
         nickname: str = None,
         content: str = None,
@@ -354,10 +354,10 @@ class AsyncSubClient(Acm, Session):
                 [100, backgroundImage, None, None, None]
             ]
 
-        req = await self.postRequest(f"/x{self.comId}/s/user-profile/{self.uid}", data)
+        req = self.postRequest(f"/x{self.comId}/s/user-profile/{self.uid}", data)
         return Json(req)
 
-    async def edit_chat(
+    def edit_chat(
         self,
         chatId: str,
         title: str = None,
@@ -387,18 +387,18 @@ class AsyncSubClient(Acm, Session):
                 "media": [100, background, None],
                 "timestamp": int(timestamp() * 1000),
             }
-            req = await self.postRequest(
+            req = self.postRequest(
                 f"/x{self.comId}/s/chat/thread/{chatId}/member/{self.uid}/background",
                 data,
             )
             res.append(Json(req))
 
-        req = await self.postRequest(f"/x{self.comId}/s/chat/thread/{chatId}", data)
+        req = self.postRequest(f"/x{self.comId}/s/chat/thread/{chatId}", data)
         res.append(Json(req))
 
         return res
 
-    async def chat_settings(
+    def chat_settings(
         self,
         chatId: str,
         viewOnly: bool = False,
@@ -417,7 +417,7 @@ class AsyncSubClient(Acm, Session):
                 opt = 1
 
             data = {"alertOption": opt, "timestamp": int(timestamp() * 1000)}
-            req = await self.postRequest(
+            req = self.postRequest(
                 f"/x{self.comId}/s/chat/thread/{chatId}/member/{self.uid}/alert", data
             )
             res.append(Json(req))
@@ -428,7 +428,7 @@ class AsyncSubClient(Acm, Session):
             else:
                 viewOnly = "disable"
 
-            req = await self.postRequest(
+            req = self.postRequest(
                 f"/x{self.comId}/s/chat/thread/{chatId}/view-only/{viewOnly}"
             )
             res.append(Json(req))
@@ -439,7 +439,7 @@ class AsyncSubClient(Acm, Session):
             else:
                 canInvite = "disable"
 
-            req = await self.postRequest(
+            req = self.postRequest(
                 f"/x{self.comId}/s/chat/thread/{chatId}/members-can-invite/{canInvite}"
             )
             res.append(Json(req))
@@ -449,7 +449,7 @@ class AsyncSubClient(Acm, Session):
                 canTip = "enable"
             else:
                 canTip = "disable"
-            req = await self.postRequest(
+            req = self.postRequest(
                 f"/x{self.comId}/s/chat/thread/{chatId}/tipping-perm-status/{canTip}"
             )
             res.append(Json(req))
@@ -460,17 +460,17 @@ class AsyncSubClient(Acm, Session):
             else:
                 pin = "unpin"
 
-            req = await self.postRequest(f"/x{self.comId}/s/chat/thread/{chatId}/{pin}")
+            req = self.postRequest(f"/x{self.comId}/s/chat/thread/{chatId}/{pin}")
             res.append(Json(req))
 
         if coHosts:
             data = {"uidList": coHosts, "timestamp": int(timestamp() * 1000)}
-            req = await self.postRequest(f"{self.comId}/s/chat/thread/{chatId}/co-host", data)
+            req = self.postRequest(f"{self.comId}/s/chat/thread/{chatId}/co-host", data)
             res.append(Json(req))
 
         return res
 
-    async def like_blog(self, blogId: str = None, wikiId: str = None):
+    def like_blog(self, blogId: str = None, wikiId: str = None):
         data = {"value": 4, "timestamp": int(timestamp() * 1000)}
 
         if blogId:
@@ -480,10 +480,10 @@ class AsyncSubClient(Acm, Session):
         else:
             raise TypeError("Please put wiki or blog Id")
 
-        req = await self.postRequest(link, data)
+        req = self.postRequest(link, data)
         return Json(req)
 
-    async def unlike_blog(self, blogId: str = None, wikiId: str = None):
+    def unlike_blog(self, blogId: str = None, wikiId: str = None):
         if blogId:
             link = f"/x{self.comId}/s/blog/{blogId}/vote?eventSource=FeedList"
         elif wikiId:
@@ -491,10 +491,10 @@ class AsyncSubClient(Acm, Session):
         else:
             raise TypeError("Please put wikiId or blogId")
 
-        req = await self.deleteRequest(link)
+        req = self.deleteRequest(link)
         return Json(req)
 
-    async def change_titles(self, userId: str, titles: list, colors: list):
+    def change_titles(self, userId: str, titles: list, colors: list):
         t = []
         for title, color in zip(titles, colors):
             t.append({"title": title, "color": color})
@@ -504,10 +504,10 @@ class AsyncSubClient(Acm, Session):
             "timestamp": int(timestamp() * 1000),
         }
 
-        req = await self.postRequest(f"/x{self.comId}/s/user-profile/{userId}/admin", data)
+        req = self.postRequest(f"/x{self.comId}/s/user-profile/{userId}/admin", data)
         return Json(req)
 
-    async def like_comment(
+    def like_comment(
         self, commentId: str, blogId: str = None, wikiId: str = None, userId: str = None
     ):
         data = {"value": 1}
@@ -524,10 +524,10 @@ class AsyncSubClient(Acm, Session):
         else:
             raise TypeError("Please put a wiki or user or blog Id")
 
-        req = await self.postRequest(link, data)
+        req = self.postRequest(link, data)
         return Json(req)
 
-    async def unlike_comment(
+    def unlike_comment(
         self, commentId: str, blogId: str = None, wikiId: str = None, userId: str = None
     ):
         if blogId:
@@ -539,10 +539,10 @@ class AsyncSubClient(Acm, Session):
         else:
             raise TypeError("Please put a wiki or user or blog Id")
 
-        req = await self.deleteRequest(link)
+        req = self.deleteRequest(link)
         return Json(req)
 
-    async def comment(
+    def comment(
         self,
         comment: str,
         userId: str = None,
@@ -569,10 +569,10 @@ class AsyncSubClient(Acm, Session):
         else:
             raise TypeError("Please put a wiki or user or blog Id")
 
-        req = await self.postRequest(link, data)
+        req = self.postRequest(link, data)
         return Json(req)
 
-    async def delete_comment(
+    def delete_comment(
         self, commentId: str, userId: str = None, blogId: str = None, wikiId: str = None
     ):
         if userId:
@@ -584,10 +584,10 @@ class AsyncSubClient(Acm, Session):
         else:
             raise TypeError("Please put blog or wiki or user Id")
 
-        req = await self.deleteRequest(link)
+        req = self.deleteRequest(link)
         return Json(req)
 
-    async def edit_comment(
+    def edit_comment(
         self,
         commentId: str,
         comment: str,
@@ -614,10 +614,10 @@ class AsyncSubClient(Acm, Session):
         else:
             raise TypeError("Please put blog or wiki or user Id")
 
-        req = await self.postRequest(link, data)
+        req = self.postRequest(link, data)
         return Comment(req).Comments
 
-    async def get_comment_info(
+    def get_comment_info(
         self,
         commentId: str,
         userId: str = None,
@@ -639,22 +639,22 @@ class AsyncSubClient(Acm, Session):
         else:
             raise TypeError("Please put blog or wiki or user Id")
 
-        req = await self.getRequest(link)
+        req = self.getRequest(link)
         return Comment(req).Comments
 
-    async def get_wall_comments(
+    def get_wall_comments(
         self, userId: str, sorting: str = "newest", start: int = 0, size: int = 25
     ):
         sorting = sorting.lower().replace("top", "vote")
         if sorting not in ["newest", "oldest", "vote"]:
             raise TypeError("حط تايب يا حمار")
 
-        req = await self.getRequest(
+        req = self.getRequest(
             f"/x{self.comId}/s/user-profile/{userId}/comment?sort={sorting}&start={start}&size={size}"
         )
         return CommentList(req["commentList"]).CommentList
 
-    async def get_blog_comments(
+    def get_blog_comments(
         self,
         wikiId: str = None,
         blogId: str = None,
@@ -676,30 +676,30 @@ class AsyncSubClient(Acm, Session):
         else:
             raise TypeError("Please choose a wiki or a blog")
 
-        req = await self.getRequest(link)
+        req = self.getRequest(link)
         return CommentList(req["commentList"]).CommentList
 
-    async def vote_comment(self, blogId: str, commentId: str, value: bool = True):
+    def vote_comment(self, blogId: str, commentId: str, value: bool = True):
         if value:
             value = 1
         else:
             value = -1
 
         data = {"value": value, "timestamp": int(timestamp() * 1000)}
-        req = await self.postRequest(
+        req = self.postRequest(
             f"/x{self.comId}/s/blog/{blogId}/comment/{commentId}/vote?cv=1.2&value=1",
             data,
         )
         return Json(req)
 
-    async def vote_poll(self, blogId: str, optionId: str):
+    def vote_poll(self, blogId: str, optionId: str):
         data = {"value": 1, "timestamp": int(timestamp() * 1000)}
-        req = await self.postRequest(
+        req = self.postRequest(
             f"/x{self.comId}/s/blog/{blogId}/poll/option/{optionId}/vote", data
         )
         return Json(req)
 
-    async def get_blog_info(
+    def get_blog_info(
         self, blogId: str = None, wikiId: str = None, folderId: str = None
     ):
         if blogId:
@@ -711,28 +711,28 @@ class AsyncSubClient(Acm, Session):
         else:
             raise TypeError("Please put a wiki or blog Id")
 
-        req = await self.getRequest(link)
+        req = self.getRequest(link)
         return GetInfo(req).GetInfo
 
-    async def get_blogs(self, start: int = 0, size: int = 25):
-        req = await self.getRequest(
+    def get_blogs(self, start: int = 0, size: int = 25):
+        req = self.getRequest(
             f"/x{self.comId}/s/feed/featured?start={start}&size={size}"
         )
         return BlogList(req["featuredList"]).BlogList
 
-    async def get_blogs_more(self, start: int = 0, size: int = 25):
-        req = await self.getRequest(
+    def get_blogs_more(self, start: int = 0, size: int = 25):
+        req = self.getRequest(
             f"/x{self.comId}/s/feed/featured-more?start={start}&size={size}"
         )
         return BlogList(req["blogList"]).BlogList
 
-    async def get_blogs_all(self, start: int = 0, size: int = 25, pagingType: str = "t"):
-        req = await self.getRequest(
+    def get_blogs_all(self, start: int = 0, size: int = 25, pagingType: str = "t"):
+        req = self.getRequest(
             f"/x{self.comId}/s/feed/blog-all?pagingType={pagingType}&start={start}&size={size}"
         )
         return RecentBlogs(req["blogList"]).RecentBlogs
 
-    async def tip_coins(
+    def tip_coins(
         self,
         coins: int,
         chatId: str = None,
@@ -759,43 +759,43 @@ class AsyncSubClient(Acm, Session):
         else:
             raise TypeError("Please put a wiki or chat or blog Id")
 
-        req = await self.postRequest(link, data)
+        req = self.postRequest(link, data)
         return Json(req)
 
-    async def check_in(self, timezone: int = 180):
+    def check_in(self, timezone: int = 180):
         data = {"timezone": timezone, "timestamp": int(timestamp() * 1000)}
-        req = await self.postRequest(f"/x{self.comId}/s/check-in", data)
+        req = self.postRequest(f"/x{self.comId}/s/check-in", data)
         return Json(req)
 
-    async def check_in_lottery(self, timezone: int = 180):
+    def check_in_lottery(self, timezone: int = 180):
         data = {"timezone": timezone, "timestamp": int(timestamp() * 1000)}
-        req = await self.postRequest(f"/x{self.comId}/s/check-in/lottery", data)
+        req = self.postRequest(f"/x{self.comId}/s/check-in/lottery", data)
         return Json(req)
 
-    async def delete_message(
+    def delete_message(
         self, chatId: str, messageId: str, asStaff: bool = False, reason: str = None
     ):
         data = {"adminOpName": 102, "timestamp": int(timestamp() * 1000)}
 
         if asStaff and reason:
             data["adminOpNote"] = {"content": reason}
-            req = await self.postRequest(
+            req = self.postRequest(
                 f"/x{self.comId}/s/chat/thread/{chatId}/message/{messageId}/admin", data
             )
         else:
-            req = await self.deleteRequest(
+            req = self.deleteRequest(
                 f"/x{self.comId}/s/chat/thread/{chatId}/message/{messageId}"
             )
 
         return Json(req)
 
-    async def invite_by_host(self, chatId: str, userId: Union[str, list]):
-        req = await self.postRequest(
+    def invite_by_host(self, chatId: str, userId: Union[str, list]):
+        req = self.postRequest(
             f"/x{self.comId}/s/chat/thread/{chatId}/member/{userId}/invite-av-chat"
         )
         return Json(req)
 
-    async def strike(self, userId: str, time: str, title: str = None, reason: str = None):
+    def strike(self, userId: str, time: str, title: str = None, reason: str = None):
         times = {
             "1-Hours": 3600,
             "3-Hours": 10800,
@@ -816,25 +816,25 @@ class AsyncSubClient(Acm, Session):
             "timestamp": int(timestamp() * 1000),
         }
 
-        req = await self.postRequest(f"/x{self.comId}/s/notice", data)
+        req = self.postRequest(f"/x{self.comId}/s/notice", data)
         return Json(req)
 
-    async def ban(self, userId: str, reason: str, banType: int = None):
+    def ban(self, userId: str, reason: str, banType: int = None):
         data = {
             "reasonType": banType,
             "note": {"content": reason},
             "timestamp": int(timestamp() * 1000),
         }
 
-        req = await self.postRequest(f"/x{self.comId}/s/user-profile/{userId}/ban", data)
+        req = self.postRequest(f"/x{self.comId}/s/user-profile/{userId}/ban", data)
         return Json(req)
 
-    async def unban(self, userId: str, reason: str = "هذا العضو كان شاطر اخر كم يوم"):
+    def unban(self, userId: str, reason: str = "هذا العضو كان شاطر اخر كم يوم"):
         data = {"note": {"content": reason}, "timestamp": int(timestamp() * 1000)}
-        req = await self.postRequest(f"/x{self.comId}/s/user-profile/{userId}/unban", data)
+        req = self.postRequest(f"/x{self.comId}/s/user-profile/{userId}/unban", data)
         return Json(req)
 
-    async def hide(
+    def hide(
         self,
         note: str = None,
         blogId: str = None,
@@ -861,10 +861,10 @@ class AsyncSubClient(Acm, Session):
         if note:
             data["adminOpNote"] = {"content": note}
 
-        req = await self.postRequest(link, data)
+        req = self.postRequest(link, data)
         return Json(req)
 
-    async def unhide(
+    def unhide(
         self,
         note: str = None,
         blogId: str = None,
@@ -891,10 +891,10 @@ class AsyncSubClient(Acm, Session):
         if note:
             data["adminOpNote"] = {"content": note}
 
-        req = await self.postRequest(link, data)
+        req = self.postRequest(link, data)
         return Json(req)
 
-    async def send_warning(self, userId: str, reason: str = None):
+    def send_warning(self, userId: str, reason: str = None):
         data = {
             "uid": userId,
             "title": "Custom",
@@ -906,17 +906,17 @@ class AsyncSubClient(Acm, Session):
             "timestamp": int(timestamp() * 1000),
         }
 
-        req = await self.postRequest(f"/x{self.comId}/s/notice", data)
+        req = self.postRequest(f"/x{self.comId}/s/notice", data)
         return Json(req)
 
-    async def invite_to_voice_chat(self, userId: str = None, chatId: str = None):
+    def invite_to_voice_chat(self, userId: str = None, chatId: str = None):
         data = {"uid": userId, "timestamp": int(timestamp() * 1000)}
-        req = await self.postRequest(
+        req = self.postRequest(
             f"/g/x{self.comId}/chat/thread/{chatId}/vvchat-presenter/invite", data
         )
         return Json(req)
 
-    async def post_blog(self, title: str, content: str, fansOnly: bool = False):
+    def post_blog(self, title: str, content: str, fansOnly: bool = False):
         data = {
             "extensions": {"fansOnly": fansOnly},
             "content": content,
@@ -929,10 +929,10 @@ class AsyncSubClient(Acm, Session):
             "timestamp": int(timestamp() * 1000),
         }
 
-        req = await self.postRequest(f"/x{self.comId}/s/blog", data)
+        req = self.postRequest(f"/x{self.comId}/s/blog", data)
         return Json(req)
 
-    async def post_wiki(
+    def post_wiki(
         self,
         title: str,
         content: str,
@@ -958,29 +958,29 @@ class AsyncSubClient(Acm, Session):
         if icon:
             data["icon"] = icon
 
-        req = await self.postRequest(f"/x{self.comId}/s/item", data)
+        req = self.postRequest(f"/x{self.comId}/s/item", data)
         return Json(req)
 
-    async def delete_blog(self, blogId: str):
-        req = await self.deleteRequest(f"/x{self.comId}/s/blog/{blogId}")
+    def delete_blog(self, blogId: str):
+        req = self.deleteRequest(f"/x{self.comId}/s/blog/{blogId}")
         return Json(req)
 
-    async def delete_wiki(self, wikiId: str):
-        req = await self.deleteRequest(f"/x{self.comId}/s/item/{wikiId}")
+    def delete_wiki(self, wikiId: str):
+        req = self.deleteRequest(f"/x{self.comId}/s/item/{wikiId}")
         return Json(req)
 
-    async def activate_status(self, status: int = 1):
+    def activate_status(self, status: int = 1):
         data = {
             "onlineStatus": status,
             "duration": 86400,
             "timestamp": int(timestamp() * 1000),
         }
-        req = await self.postRequest(
+        req = self.postRequest(
             f"/x{self.comId}/s/user-profile/{self.uid}/online-status", data
         )
         return Json(req)
 
-    async def subscribe(self, userId: str, autoRenew: str = False, transactionId: str = None):
+    def subscribe(self, userId: str, autoRenew: str = False, transactionId: str = None):
         if transactionId is None:
             transactionId = str(UUID(hexlify(os.urandom(16)).decode("ascii")))
         data = {
@@ -991,20 +991,20 @@ class AsyncSubClient(Acm, Session):
             "timestamp": int(timestamp() * 1000),
         }
 
-        req = await self.postRequest(f"/x{self.comId}/s/influencer/{userId}/subscribe", data)
+        req = self.postRequest(f"/x{self.comId}/s/influencer/{userId}/subscribe", data)
         return Json(req)
 
-    async def submit_wiki(self, wikiId: str, message: str = None):
+    def submit_wiki(self, wikiId: str, message: str = None):
         data = {
             "message": message,
             "itemId": wikiId,
             "timestamp": int(timestamp() * 1000),
         }
 
-        req = await self.postRequest(f"/x{self.comId}/s/knowledge-base-request", data)
+        req = self.postRequest(f"/x{self.comId}/s/knowledge-base-request", data)
         return Json(req)
 
-    async def edit_blog(
+    def edit_blog(
         self,
         title: str,
         content: str,
@@ -1034,16 +1034,16 @@ class AsyncSubClient(Acm, Session):
         else:
             raise TypeError("Please put blogId or wikiId")
 
-        req = await self.postRequest(link, data)
+        req = self.postRequest(link, data)
         return Json(req)
 
-    async def get_chat_bubbles(self, start: int = 0, size: int = 20):
-        req = await self.getRequest(
+    def get_chat_bubbles(self, start: int = 0, size: int = 20):
+        req = self.getRequest(
             f"/x{self.comId}/s/chat/chat-bubble?type=all-my-bubbles&start={start}&size={size}"
         )
         return BubbleList(req["chatBubbleList"]).BubbleList
 
-    async def select_bubble(self, bubbleId: str, apply: int = 0, chatId: str = None):
+    def select_bubble(self, bubbleId: str, apply: int = 0, chatId: str = None):
         data = {
             "bubbleId": bubbleId,
             "applyToAll": apply,
@@ -1052,41 +1052,41 @@ class AsyncSubClient(Acm, Session):
         if chatId:
             data["threadId"] = chatId
 
-        req = await self.postRequest(f"/x{self.comId}/s/chat/thread/apply-bubble")
+        req = self.postRequest(f"/x{self.comId}/s/chat/thread/apply-bubble")
         return Json(req)
 
-    async def delete_chat_bubble(self, bubbleId: str):
-        req = await self.deleteRequest(url=f"/x{self.comId}/s/chat/chat-bubble/{bubbleId}")
+    def delete_chat_bubble(self, bubbleId: str):
+        req = self.deleteRequest(url=f"/x{self.comId}/s/chat/chat-bubble/{bubbleId}")
         return Json(req)
 
-    async def get_chat_bubble_templates(self, start: int = 0, size: int = 25):
-        req = await self.getRequest(
+    def get_chat_bubble_templates(self, start: int = 0, size: int = 25):
+        req = self.getRequest(
             f"/x{self.comId}/s/chat/chat-bubble/templates?start={start}&size={size}"
         )
         return BubbleTemplates(req["templateList"])
 
-    async def upload_custom_bubble(self, templateId: str):
-        req = await self.postRequest(
+    def upload_custom_bubble(self, templateId: str):
+        req = self.postRequest(
             f"/x{self.comId}/s/chat/chat-bubble/templates/{templateId}/generate"
         )
         return Json(req)
 
-    async def kick(self, chatId: str, userId: str, rejoin: bool = True):
+    def kick(self, chatId: str, userId: str, rejoin: bool = True):
         if rejoin:
             rejoin = 1
         if not rejoin:
             rejoin = 0
 
-        req = await self.deleteRequest(
+        req = self.deleteRequest(
             f"/x{self.comId}/s/chat/thread/{chatId}/member/{userId}?allowRejoin={rejoin}"
         )
         return Json(req)
 
-    async def block(self, userId: str):
-        req = await self.postRequest(f"/x{self.comId}/s/block/{userId}")
+    def block(self, userId: str):
+        req = self.postRequest(f"/x{self.comId}/s/block/{userId}")
         return Json(req)
 
-    async def flag(
+    def flag(
         self,
         reason: str,
         flagType: str = "spam",
@@ -1119,10 +1119,10 @@ class AsyncSubClient(Acm, Session):
         else:
             raise TypeError("choose a certain type to report")
 
-        req = await self.postRequest(f"/x{self.comId}/s/flag", data)
+        req = self.postRequest(f"/x{self.comId}/s/flag", data)
         return Json(req)
 
-    async def send_active_time(self, tz: int = int(-timezones // 1000), timers: list = None):
+    def send_active_time(self, tz: int = int(-timezones // 1000), timers: list = None):
         data = {
             "userActiveTimeChunkList": [timers if timers else {"start": int(timestamp()), "end": int(timestamp() + 300)}],
             "timestamp": int(timestamp() * 1000),
@@ -1130,55 +1130,55 @@ class AsyncSubClient(Acm, Session):
             "timezone": tz,
         }
 
-        req = await self.postRequest(
+        req = self.postRequest(
             f"/x{self.comId}/s/community/stats/user-active-time", data, minify=True
         )
         return Json(req)
 
-    async def transfer_host(self, chatId: str, userIds: list):
+    def transfer_host(self, chatId: str, userIds: list):
         data = {"uidList": userIds, "timestamp": int(timestamp() * 1000)}
-        req = await self.postRequest(
+        req = self.postRequest(
             f"/x{self.comId}/s/chat/thread/{chatId}/transfer-organizer", data
         )
         return Json(req)
 
-    async def accept_host(self, chatId: str, requestId: str):
+    def accept_host(self, chatId: str, requestId: str):
         data = {"timestamp": int(timestamp() * 1000)}
-        req = await self.postRequest(
+        req = self.postRequest(
             f"/x{self.comId}/s/chat/thread/{chatId}/transfer-organizer/{requestId}/accept",
             data,
         )
         return Json(req)
 
-    async def set_cohost(self, chatId : str, asistent_id : [str, list]):
+    def set_cohost(self, chatId : str, asistent_id : [str, list]):
          data = {
             "uidList": asistent_id,
             "timestamp": int(timestamp() * 1000)
         }
 
-         req = await self.postRequest(f"/x{self.comId}/s/chat/thread/{chatId}/co-host", data)
+         req = self.postRequest(f"/x{self.comId}/s/chat/thread/{chatId}/co-host", data)
          return Json(req)
 
 
-    async def del_cohost(self, chatId : str, userId : str):
-           req = await self.deleteRequest(f"/x{self.comId}/s/chat/thread/{chatId}/co-host/{userId}")
+    def del_cohost(self, chatId : str, userId : str):
+           req = self.deleteRequest(f"/x{self.comId}/s/chat/thread/{chatId}/co-host/{userId}")
            return Json(req)
 
-    async def get_quizzes(self, quizzesType: str = "recent", start: int = 0, size: int = 25):
+    def get_quizzes(self, quizzesType: str = "recent", start: int = 0, size: int = 25):
         link = {
             "recent": f"x{self.comId}/s/blog?type=quizzes-recent&start={start}&size={size}",
             "trending": f"x{self.comId}/s/feed/quiz-trending?start={start}&size={size}",
             "best": f"x{self.comId}/s/feed/quiz-best-quizzes?start={start}&size={size}",
         }.get(quizzesType)
 
-        req = await self.getRequest(link)
+        req = self.getRequest(link)
         return BlogList(req["blogList"]).BlogList
 
-    async def get_quiz_questions(self, quizId: str):
-        req = await self.getRequest(f"/x{self.comId}/s/blog/{quizId}?action=review")
+    def get_quiz_questions(self, quizId: str):
+        req = self.getRequest(f"/x{self.comId}/s/blog/{quizId}?action=review")
         return QuizQuestionList(req["blog"]["quizQuestionList"]).QuizQuestionList
 
-    async def play_quiz(self, quizId: str, questions: list, answers: list, mode: int = 0):
+    def play_quiz(self, quizId: str, questions: list, answers: list, mode: int = 0):
         data = {
             "mode": mode,
             "quizAnswerList": [
@@ -1187,66 +1187,66 @@ class AsyncSubClient(Acm, Session):
             ],
             "timestamp": int(timestamp() * 1000),
         }
-        req = await self.postRequest(f"/x{self.comId}/s/blog/{quizId}/quiz/result", data)
+        req = self.postRequest(f"/x{self.comId}/s/blog/{quizId}/quiz/result", data)
         return req
 
-    async def get_quiz_rankings(self, quizId: str, start: int = 0, size: int = 25):
-        req = await self.getRequest(
+    def get_quiz_rankings(self, quizId: str, start: int = 0, size: int = 25):
+        req = self.getRequest(
             f"/x{self.comId}/s/blog/{quizId}/quiz/result?start={start}&size={size}"
         )
         return QuizRankings(req).QuizRankings
 
-    async def search_user(self, username: str, start: int = 0, size: int = 25):
-        req = await self.getRequest(
+    def search_user(self, username: str, start: int = 0, size: int = 25):
+        req = self.getRequest(
             f"/x{self.comId}/s/user-profile?type=name&q={username}&start={start}&size={size}"
         )
         return UserProfileList(req["userProfileList"]).UserProfileList
 
-    async def search_blog(self, words: str, start: int = 0, size: int = 25):
-        req = await self.getRequest(
+    def search_blog(self, words: str, start: int = 0, size: int = 25):
+        req = self.getRequest(
             f"/x{self.comId}/s/blog?type=keywords&q={words}&start={start}&size={size}"
         )
         return BlogList(req["blogList"]).BlogList
 
-    async def get_notifications(self, size: int = 25, pagingType: str = "t"):
-        req = await self.getRequest(
+    def get_notifications(self, size: int = 25, pagingType: str = "t"):
+        req = self.getRequest(
             f"/x{self.comId}/s/notification?pagingType={pagingType}&size={size}"
         )
         return NotificationList(req).NotificationList
 
-    async def get_notices(
+    def get_notices(
         self, start: int = 0, size: int = 25, noticeType: str = "usersV2", status: int = 1
     ):
-        req = await self.getRequest(
+        req = self.getRequest(
             f"/x{self.comId}/s/notice?type={noticeType}&status={status}&start={start}&size={size}"
         )
         return NoticeList(req).NoticeList
 
-    async def accept_promotion(self, requestId: str):
+    def accept_promotion(self, requestId: str):
         if not isinstance(requestId, str):
             raise TypeError(f"Please use a string not {type(requestId)}")
-        req = await self.postRequest(f"/x{self.comId}/s/notice/{requestId}/accept")
+        req = self.postRequest(f"/x{self.comId}/s/notice/{requestId}/accept")
         return Json(req)
 
-    async def decline_promotion(self, requestId: str):
+    def decline_promotion(self, requestId: str):
         if not isinstance(requestId, str):
             raise TypeError(f"Please use a string not {type(requestId)}")
-        req = await self.postRequest(f"/x{self.comId}/s/notice/{requestId}/decline")
+        req = self.postRequest(f"/x{self.comId}/s/notice/{requestId}/decline")
         return Json(req)
 
-    async def sendWebActive(self):
+    def sendWebActive(self):
         data = {"ndcId": self.comId}
-        return await self.postRequest(
+        return self.postRequest(
             "/community/stats/web-user-active-time", data, webRequest=True
         )
 
-    async def get_recent_blogs(self, pageToken: str = None, start: int = 0, size: int = 25):
-        req = await self.getRequest(
+    def get_recent_blogs(self, pageToken: str = None, start: int = 0, size: int = 25):
+        req = self.getRequest(
             f"/x{self.comId}/s/feed/blog-all?pagingType=t&start={start}&size={size}"
         )
         return RecentBlogs(req["BlogList"]).RecentBlogs
 
-    async def publish_to_featured(
+    def publish_to_featured(
         self,
         time: int,
         userId: str = None,
@@ -1278,10 +1278,10 @@ class AsyncSubClient(Acm, Session):
             raise TypeError("Please Specify Object ID")
 
         data["adminOpValue"]["featuredType"] = featuredType
-        req = await self.postRequest(f"/x{self.comId}/s/{endpoint}/admin", data)
+        req = self.postRequest(f"/x{self.comId}/s/{endpoint}/admin", data)
         return Json(req)
 
-    async def remove_from_featured(
+    def remove_from_featured(
         self,
         userId: str = None,
         chatId: str = None,
@@ -1305,5 +1305,5 @@ class AsyncSubClient(Acm, Session):
         else:
             raise TypeError("Please Specify Object ID")
 
-        req = await self.postRequest(f"/x{self.comId}/s/{endpoint}/admin", data)
+        req = self.postRequest(f"/x{self.comId}/s/{endpoint}/admin", data)
         return Json(req)

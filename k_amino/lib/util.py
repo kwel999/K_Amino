@@ -1,7 +1,10 @@
+from time import time as timestamp
+from typing import Dict, List
 import base64
 import hashlib
 import hmac
 from uuid import uuid4
+
 
 # tapjoy = "https://ads.tapdaq.com/v4/analytics/reward"
 webApi = "https://aminoapps.com/api{}".format
@@ -26,3 +29,18 @@ def generateDevice():
 
 def uuidString():
     return str(uuid4())
+
+
+def active_time(seconds=0, minutes=5, hours=0) -> List[Dict[str, int]]:
+    total = seconds + minutes*60 + hours*60*60
+    return [
+        {
+            'start': int(timestamp()),
+            'end': int(timestamp() + 300)
+        } for _ in range(total // 300)
+    ] + [
+        {
+            'start': int(timestamp()),
+            'end': int(timestamp() + total % 300)
+        }
+    ]
