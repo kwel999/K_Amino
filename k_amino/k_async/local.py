@@ -1124,7 +1124,7 @@ class AsyncSubClient(Acm, Session):
 
     async def send_active_time(self, tz: int = int(-timezones // 1000), timers: list = None):
         data = {
-            "userActiveTimeChunkList": [timers if timers else {"start": int(timestamp()), "end": int(timestamp() + 300)}],
+            "userActiveTimeChunkList": timers if timers else [{"start": int(timestamp()), "end": int(timestamp() + 300)}],
             "timestamp": int(timestamp() * 1000),
             "optInAdsFlags": 2147483647,
             "timezone": tz,
