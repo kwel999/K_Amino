@@ -1121,10 +1121,10 @@ class SubClient(Acm, Session):
 
         req = self.postRequest(f"/x{self.comId}/s/flag", data)
         return Json(req)
-
+#thanks to V¡ktor#9475 for ideas
     def send_active_time(self, tz: int = int(-timezones // 1000), timers: list = None):
         data = {
-            "userActiveTimeChunkList": [timers if timers else {"start": int(timestamp()), "end": int(timestamp() + 300)}],
+            "userActiveTimeChunkList": timers if timers else [{"start": int(timestamp()), "end": int(timestamp() + 300)}],
             "timestamp": int(timestamp() * 1000),
             "optInAdsFlags": 2147483647,
             "timezone": tz,
