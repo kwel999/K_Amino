@@ -44,14 +44,14 @@ setup(
     include_package_data=True,
     install_requires=[
         "JSON_minify",
+        "httpx",
         "setuptools",
         "aiohttp",
         "websocket-client==1.3.1",
         "websockets",
         "ujson",
         "requests",
-        "easy-events>=2.6.0",
-        "httpx"
+        "easy-events==2.8.2"
     ],
     setup_requires=["wheel"],
     packages=find_packages(),
