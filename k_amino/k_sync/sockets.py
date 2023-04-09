@@ -133,7 +133,7 @@ class Callbacks(Bot):
         if self.is_bot:
             new_data = Event(data["o"]).Event
             new_data = self.build_parameters(new_data)
-            self.trigger(new_data, str_only=True, thread=True)
+            self.trigger(new_data, str_only=True)
 
         self.setCall(getframe(0).f_code.co_name, data)
 
