@@ -545,6 +545,10 @@ class WebSocketApp:
             return [None, None]
 
     async def _callback(self, callback, *args):
+        none = type(None)
+        if isinstance(callback, none):
+            return
+
         if callback and callable(callback):
             try:
                 await callback(self, *args)
@@ -553,4 +557,4 @@ class WebSocketApp:
                 _logging.error("error from callback {}: {}".format(callback, e))
                 #print(type(e), e, callback)
                 if self.on_error:
-                    await self.on_error(self, e)
+                    await self.on_error(self, [e, callback.__name__])
