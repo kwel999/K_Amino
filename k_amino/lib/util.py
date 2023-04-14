@@ -1,3 +1,4 @@
+from base64 import b64encode, urlsafe_b64decode
 from time import time as timestamp
 from typing import Dict, List
 import base64
@@ -44,3 +45,15 @@ def active_time(seconds=0, minutes=5, hours=0) -> List[Dict[str, int]]:
             'end': int(timestamp() + total % 300)
         }
     ]
+
+
+def decode_sid(sid: str) -> dict:
+    return json.loads(urlsafe_b64decode(sid + "=" * (4 - len(sid) % 4))[1:-20])
+
+def sid_to_uid(SID: str) -> str: return decode_sid(SID)["2"]
+
+def sid_to_ip_address(SID: str) -> str: return decode_sid(SID)["4"]
+
+def sid_created_time(SID: str) -> str: return decode_sid(SID)["5"]
+
+def sid_to_client_type(SID: str) -> str: return decode_sid(SID)["6"]

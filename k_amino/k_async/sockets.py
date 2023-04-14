@@ -6,13 +6,13 @@ from sys import _getframe as getframe
 from typing import Union
 
 import ujson as json
-import websocket
 import asyncio
+
+from .websocket_async import WebSocketApp
 
 from ..lib import *
 from ..lib.objects import *
 from .bot import AsyncBot as Bot
-from easy_events import AsyncEvents
 
 try:
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
@@ -389,7 +389,7 @@ class WssClient:
             },
             "t": 112,
         }
-        asyncio.sleep(2.2)
+        await asyncio.sleep(2.2)
         await self.wss.send(data)
 
     async def joinVideoChat(self, comId: str, chatId: str, joinType: int = 1):
@@ -411,7 +411,7 @@ class WssClient:
             },
             "t": 108,
         }
-        asyncio.sleep(2.2)
+        await asyncio.sleep(2.2)
         await self.wss.send(data)
 
     async def startVoiceChat(self, comId, chatId: str, joinType: int = 1):
@@ -432,7 +432,7 @@ class WssClient:
             },
             "t": 112,
         }
-        asyncio.sleep(2.2)
+        await asyncio.sleep(2.2)
         await self.wss.send(data)
         data = {
             "o": {
@@ -443,7 +443,7 @@ class WssClient:
             },
             "t": 108,
         }
-        asyncio.sleep(2.2)
+        await asyncio.sleep(2.2)
         await self.wss.send(data)
 
     async def endVoiceChat(self, comId: str, chatId: str, leaveType: int = 2):
@@ -464,7 +464,7 @@ class WssClient:
             },
             "t": 112,
         }
-        asyncio.sleep(2.2)
+        await asyncio.sleep(2.2)
         await self.wss.send(data)
 
     async def joinVideoChatAsSpectator(self, comId: str, chatId: str):
@@ -484,7 +484,7 @@ class WssClient:
             },
             "t": 112,
         }
-        asyncio.sleep(2.2)
+        await asyncio.sleep(2.2)
         await self.wss.send(data)
 
     async def threadJoin(self, comId: str, chatId: str):
@@ -557,7 +557,7 @@ class WssClient:
             "t": 300,
         }
 
-        asyncio.sleep(2.2)
+        await asyncio.sleep(2.2)
         await self.wss.send(data)
 
         for i in range(3):
@@ -575,9 +575,6 @@ class WssClient:
 
 class Wss(AsyncCallbacks, WssClient, Headers):
     def __init__(self, client, trace: bool = False, is_bot: bool = False):
-        self.ev = AsyncEvents(str_only=False, first_parameter_object=False, default_event=False)
-        self.ev.add_event(callback=self.res, aliases=["res"], event_type="wss")
-
         self.trace = trace
         self.socket = None
         self.headers = None
@@ -591,14 +588,14 @@ class Wss(AsyncCallbacks, WssClient, Headers):
         self.narvi = "https://service.narvii.com/api/v1/"
         self.socket_url = "wss://ws1.narvii.com"
         self.lastMessage = {}
-        websocket.enableTrace(trace)
+        # websocket.enableTrace(trace)
 
-    def onOpen(self, *args):
+    async def onOpen(self, *args):
         self.isOpened = True
         if self.trace:
             print("[ON-OPEN] Sockets are open")
 
-    def onClose(self, *args):
+    async def onClose(self, *args):
         self.isOpened = False
         if self.trace:
             print("[ON-CLOSE] Sockets are closed")
@@ -611,10 +608,9 @@ class Wss(AsyncCallbacks, WssClient, Headers):
             print("[RECEIVE] returning last message")
         return self.lastMessage
 
-    def on_message(self, ws, data):
+    async def on_message(self, ws, data):
         self.lastMessage = json.loads(data)
-        self.ev.add_task(data={"event": "res", "parameters": {"data": data}}, event_type="wss", str_only=False)
-        self.ev.run_task_sync()
+        await self.resolve(data)
 
         if self.trace:
             print("[ON-MESSAGE] Received a message . . .")
@@ -630,7 +626,7 @@ class Wss(AsyncCallbacks, WssClient, Headers):
             "NDC-MSG-SIG": util.generateSig(data=final),
         }
 
-        self.socket = websocket.WebSocketApp(
+        self.socket = WebSocketApp(
             f"{self.socket_url}/?signbody={final.replace('|', '%7C')}",
             on_message=self.on_message,
             on_close=self.onClose,
@@ -641,17 +637,30 @@ class Wss(AsyncCallbacks, WssClient, Headers):
         if self.trace:
             print("[LAUNCH] Sockets starting . . . ")
 
-        threading.Thread(
-            target=self.socket.run_forever, kwargs={"ping_interval": 60}
-        ).start()
+        self.run_socket_forever()
+
+    def start_async(self):
+        loop = asyncio.new_event_loop()
+        threading.Thread(target=loop.run_forever).start()
+        return loop
+
+    def submit_async(self, awaitable, loop):
+        return asyncio.run_coroutine_threadsafe(awaitable, loop)
+
+    def stop_async(self, loop):
+        loop.call_soon_threadsafe(loop.stop)
+
+    def run_socket_forever(self, **kwargs):
+        loop = self.start_async()
+        loop = self.submit_async(self.socket.run_forever(ping_interval=60), loop)
 
     async def close(self):
-        self.socket.close()
+        await self.socket.close()
 
         if self.trace:
             print("[CLOSE] closing socket . . .")
 
-        asyncio.sleep(1.5)
+        await asyncio.sleep(1.5)
 
     def socket_status(self):
         print("\nSockets are OPEN\n") if self.isOpened else print(
