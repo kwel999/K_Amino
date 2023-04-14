@@ -286,7 +286,10 @@ class WebSocketApp:
                     _logging.debug("Sending ping")
                     await self.sock.ping(self.ping_payload)
                 except Exception as ex:
+                    print("Ping error", type(ex), ex)
                     _logging.debug("Failed to send ping: %s", ex)
+
+        self._stop_ping_thread()
 
     async def run_forever(self, sockopt=None, sslopt=None,
                     ping_interval=0, ping_timeout=None,
@@ -542,7 +545,7 @@ class WebSocketApp:
             return [None, None]
 
     async def _callback(self, callback, *args):
-        if callback:
+        if callback and callable(callback):
             try:
                 await callback(self, *args)
 
