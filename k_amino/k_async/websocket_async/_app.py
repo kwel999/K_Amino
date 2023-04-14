@@ -1,6 +1,16 @@
-"""
+import inspect
+import selectors
+import sys
+import threading
+import time
+import traceback
+import asyncio
 
-"""
+from . import _logging
+from ._abnf import ABNF
+from ._url import parse_url
+from ._core import WebSocket, getdefaulttimeout
+from ._exceptions import *
 
 """
 _app.py
@@ -20,30 +30,42 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 """
-import selectors
-import sys
-import threading
-import time
-import traceback
-import asyncio
-
-from ._abnf import ABNF
-from ._core import WebSocket, getdefaulttimeout
-from ._exceptions import *
-from . import _logging
-
 
 __all__ = ["WebSocketApp"]
 
+RECONNECT = 0
 
-class Dispatcher:
+
+def setReconnect(reconnectInterval):
+    global RECONNECT
+    RECONNECT = reconnectInterval
+
+
+class DispatcherBase:
     """
-    Dispatcher
+    DispatcherBase
     """
     def __init__(self, app, ping_timeout):
         self.app = app
         self.ping_timeout = ping_timeout
 
+    def timeout(self, seconds, callback):
+        time.sleep(seconds)
+        callback()
+
+    async def reconnect(self, seconds, reconnector):
+        try:
+            _logging.info("reconnect() - retrying in %s seconds [%s frames in stack]" % (seconds, len(inspect.stack())))
+            time.sleep(seconds)
+            await reconnector(reconnecting=True)
+        except KeyboardInterrupt as e:
+            _logging.info("User exited %s" % (e,))
+
+
+class Dispatcher(DispatcherBase):
+    """
+    Dispatcher
+    """
     async def read(self, sock, read_callback, check_callback):
         while self.app.keep_running:
             sel = selectors.DefaultSelector()
@@ -57,21 +79,16 @@ class Dispatcher:
             sel.close()
 
 
-class SSLDispatcher:
+class SSLDispatcher(DispatcherBase):
     """
     SSLDispatcher
     """
-    def __init__(self, app, ping_timeout):
-        self.app = app
-        self.ping_timeout = ping_timeout
-
     async def read(self, sock, read_callback, check_callback):
         while self.app.keep_running:
             r = self.select()
             if r:
                 if not await read_callback():
                     break
-
             check_callback()
 
     def select(self):
@@ -81,8 +98,10 @@ class SSLDispatcher:
 
         sel = selectors.DefaultSelector()
         sel.register(sock, selectors.EVENT_READ)
+
         r = sel.select(self.ping_timeout)
         sel.close()
+
         if len(r) > 0:
             return r[0][0]
 
@@ -95,10 +114,17 @@ class WrappedDispatcher:
         self.app = app
         self.ping_timeout = ping_timeout
         self.dispatcher = dispatcher
+        dispatcher.signal(2, dispatcher.abort)  # keyboard interrupt
 
     async def read(self, sock, read_callback, check_callback):
         await self.dispatcher.read(sock, read_callback)
-        self.ping_timeout and self.dispatcher.timeout(self.ping_timeout, check_callback)
+        self.ping_timeout and self.timeout(self.ping_timeout, check_callback)
+
+    async def timeout(self, seconds, callback):
+        await self.dispatcher.timeout(seconds, callback)
+
+    async def reconnect(self, seconds, reconnector):
+        await self.timeout(seconds, reconnector)
 
 
 class WebSocketApp:
@@ -112,7 +138,8 @@ class WebSocketApp:
                  on_cont_message=None,
                  keep_running=True, get_mask_key=None, cookie=None,
                  subprotocols=None,
-                 on_data=None):
+                 on_data=None,
+                 socket=None):
         """
         WebSocketApp initialization
 
@@ -168,6 +195,8 @@ class WebSocketApp:
             Cookie value.
         subprotocols: list
             List of available sub protocols. Default is None.
+        socket: socket
+            Pre-initialized stream socket.
         """
         self.url = url
         self.header = header if header is not None else []
@@ -186,7 +215,14 @@ class WebSocketApp:
         self.sock = None
         self.last_ping_tm = 0
         self.last_pong_tm = 0
+        self.ping_thread = None
+        self.stop_ping = None
+        self.ping_interval = 0
+        self.ping_timeout = None
+        self.ping_payload = ""
         self.subprotocols = subprotocols
+        self.prepared_socket = socket
+        self.has_errored = False
 
     async def send(self, data, opcode=ABNF.OPCODE_TEXT):
         """
@@ -214,46 +250,53 @@ class WebSocketApp:
             await self.sock.close(**kwargs)
             self.sock = None
 
-    def start_async(self):
-        event = threading.Event()
-        loop = asyncio.new_event_loop()
-        thread = threading.Thread(target=loop.run_forever)
-        thread.daemon = True
-        thread.start()
-        return loop, event
+    def _start_async_ping_thread(self):
+        self.last_ping_tm = self.last_pong_tm = 0
+        self.stop_ping = threading.Event()
 
-    def submit_async(self, awaitable, loop):
-        return asyncio.run_coroutine_threadsafe(awaitable, loop)
+        self.ping_loop = asyncio.new_event_loop()
 
-    def stop_async(self, loop):
-        loop.call_soon_threadsafe(loop.stop)
+        self.ping_thread = threading.Thread(target=self.ping_loop.run_forever)
+        self.ping_thread.daemon = True
+        self.ping_thread.start()
 
-    def _send_ping(self, interval, payload):
-        loop, event = self.start_async()
-        self.submit_async(self.__send_ping(interval, event, payload, loop), loop)
+    def _stop_ping_thread(self):
+        self.ping_loop.call_soon_threadsafe(self.ping_loop.stop)
 
-    async def __send_ping(self, interval, event, payload, loop):
-        while not event.wait(interval):
-            self.last_ping_tm = time.time()
+        if self.stop_ping:
+            self.stop_ping.set()
+        if self.ping_thread and self.ping_thread.is_alive():
+            self.ping_thread.join(3)
+        self.last_ping_tm = self.last_pong_tm = 0
+
+    def submit_async(self, awaitable):
+        return asyncio.run_coroutine_threadsafe(awaitable, self.ping_loop)
+
+    def _start_ping_thread(self):
+        self._start_async_ping_thread()
+        self.submit_async(self._send_ping())
+
+    async def _send_ping(self):
+        if self.stop_ping.wait(self.ping_interval):
+            return
+        while not self.stop_ping.wait(self.ping_interval):
             if self.sock:
+                self.last_ping_tm = time.time()
                 try:
-                    await self.sock.ping(payload)
+                    _logging.debug("Sending ping")
+                    await self.sock.ping(self.ping_payload)
                 except Exception as ex:
-                    print(type(ex), ex)
-                    _logging.warning("send_ping routine terminated: {}".format(ex))
-                    raise ex
-                    break
-
-        self.stop_async(loop)
+                    _logging.debug("Failed to send ping: %s", ex)
 
     async def run_forever(self, sockopt=None, sslopt=None,
                     ping_interval=0, ping_timeout=None,
                     ping_payload="",
                     http_proxy_host=None, http_proxy_port=None,
                     http_no_proxy=None, http_proxy_auth=None,
+                    http_proxy_timeout=None,
                     skip_utf8_validation=False,
                     host=None, origin=None, dispatcher=None,
-                    suppress_origin=False, proxy_type=None):
+                    suppress_origin=False, proxy_type=None, reconnect=None):
         """
         Run event loop for WebSocket framework.
 
@@ -281,6 +324,10 @@ class WebSocketApp:
             HTTP proxy port. If not set, set to 80.
         http_no_proxy: list
             Whitelisted host names that don't use the proxy.
+        http_proxy_timeout: int or float
+            HTTP proxy timeout, default is 60 sec as per python-socks.
+        http_proxy_auth: tuple
+            HTTP proxy auth information. tuple of username and password. Default is None.
         skip_utf8_validation: bool
             skip utf8 validation.
         host: str
@@ -291,6 +338,10 @@ class WebSocketApp:
             customize reading data from socket.
         suppress_origin: bool
             suppress outputting origin header.
+        proxy_type: str
+            type of proxy from: http, socks4, socks4a, socks5, socks5h
+        reconnect: int
+            delay interval when reconnecting
 
         Returns
         -------
@@ -298,6 +349,9 @@ class WebSocketApp:
             False if the `WebSocketApp` is closed or caught KeyboardInterrupt,
             True if any other exception was raised during a loop.
         """
+
+        if reconnect is None:
+            reconnect = RECONNECT
 
         if ping_timeout is not None and ping_timeout <= 0:
             raise WebSocketException("Ensure ping_timeout > 0")
@@ -317,10 +371,10 @@ class WebSocketApp:
         if self.sock:
             raise WebSocketException("socket is already opened")
 
-        thread = None
+        self.ping_interval = ping_interval
+        self.ping_timeout = ping_timeout
+        self.ping_payload = ping_payload
         self.keep_running = True
-        self.last_ping_tm = 0
-        self.last_pong_tm = 0
 
         async def teardown(close_frame=None):
             """
@@ -332,10 +386,8 @@ class WebSocketApp:
                 If close_frame is set, the on_close handler is invoked
                 with the statusCode and reason from the provided frame.
             """
-            if thread and thread.is_alive():
-                event.set()
-                thread.join()
 
+            self._stop_ping_thread()
             self.keep_running = False
 
             if self.sock:
@@ -349,7 +401,10 @@ class WebSocketApp:
             # Finally call the callback AFTER all teardown is complete
             await self._callback(self.on_close, close_status_code, close_reason)
 
-        try:
+        async def setSock(reconnecting=False):
+            if reconnecting and self.sock:
+                await self.sock.shutdown()
+
             self.sock = WebSocket(
                 self.get_mask_key, sockopt=sockopt, sslopt=sslopt,
                 fire_cont_frame=self.on_cont_message is not None,
@@ -357,88 +412,112 @@ class WebSocketApp:
                 enable_multithread=True)
 
             self.sock.settimeout(getdefaulttimeout())
+            try:
+                await self.sock.connect(
+                    self.url, header=self.header, cookie=self.cookie,
+                    http_proxy_host=http_proxy_host,
+                    http_proxy_port=http_proxy_port, http_no_proxy=http_no_proxy,
+                    http_proxy_auth=http_proxy_auth, http_proxy_timeout=http_proxy_timeout,
+                    subprotocols=self.subprotocols,
+                    host=host, origin=origin, suppress_origin=suppress_origin,
+                    proxy_type=proxy_type, socket=self.prepared_socket)
 
-            await self.sock.connect(
-                self.url, header=self.header, cookie=self.cookie,
-                http_proxy_host=http_proxy_host,
-                http_proxy_port=http_proxy_port, http_no_proxy=http_no_proxy,
-                http_proxy_auth=http_proxy_auth, subprotocols=self.subprotocols,
-                host=host, origin=origin, suppress_origin=suppress_origin,
-                proxy_type=proxy_type)
+                _logging.info("Websocket connected")
 
-            dispatcher = self.create_dispatcher(ping_timeout, dispatcher)
+                if self.ping_interval:
+                    self._start_ping_thread()
 
-            await self._callback(self.on_open)
+                await self._callback(self.on_open)
 
-            if ping_interval:
-                self._send_ping(ping_interval, ping_payload)
+                await dispatcher.read(self.sock.sock, read, check)
+            except (WebSocketConnectionClosedException, ConnectionRefusedError, KeyboardInterrupt, SystemExit, Exception) as e:
+                #print("PART1", type(e), e)
+                await handleDisconnect(e, reconnecting)
 
-            async def read():
-                if not self.keep_running:
-                    return await teardown()
+        async def read():
+            if not self.keep_running:
+                return await teardown()
 
+            try:
                 op_code, frame = await self.sock.recv_data_frame(True)
-
-                if op_code == ABNF.OPCODE_CLOSE:
-                    return await teardown(frame)
-
-                elif op_code == ABNF.OPCODE_PING:
-                    await self._callback(self.on_ping, frame.data)
-
-                elif op_code == ABNF.OPCODE_PONG:
-                    self.last_pong_tm = time.time()
-                    await self._callback(self.on_pong, frame.data)
-
-                elif op_code == ABNF.OPCODE_CONT and self.on_cont_message:
-                    await self._callback(self.on_data, frame.data,
-                                   frame.opcode, frame.fin)
-                    await self._callback(self.on_cont_message,
-                                   frame.data, frame.fin)
+            except (WebSocketConnectionClosedException, KeyboardInterrupt) as e:
+                if custom_dispatcher:
+                    #print("PART2", type(e), e)
+                    return await handleDisconnect(e)
                 else:
-                    data = frame.data
+                    raise e
 
-                    if op_code == ABNF.OPCODE_TEXT:
-                        data = data.decode("utf-8")
+            if op_code == ABNF.OPCODE_CLOSE:
+                return await teardown(frame)
+            elif op_code == ABNF.OPCODE_PING:
+                await self._callback(self.on_ping, frame.data)
+            elif op_code == ABNF.OPCODE_PONG:
+                self.last_pong_tm = time.time()
+                await self._callback(self.on_pong, frame.data)
+            elif op_code == ABNF.OPCODE_CONT and self.on_cont_message:
+                await self._callback(self.on_data, frame.data,
+                               frame.opcode, frame.fin)
+                await self._callback(self.on_cont_message,
+                               frame.data, frame.fin)
+            else:
+                data = frame.data
+                if op_code == ABNF.OPCODE_TEXT and not skip_utf8_validation:
+                    data = data.decode("utf-8")
+                await self._callback(self.on_data, data, frame.opcode, True)
+                await self._callback(self.on_message, data)
 
-                    await self._callback(self.on_data, data, frame.opcode, True)
-                    await self._callback(self.on_message, data)
+            return True
 
-                return True
+        def check():
+            if (self.ping_timeout):
+                has_timeout_expired = time.time() - self.last_ping_tm > self.ping_timeout
+                has_pong_not_arrived_after_last_ping = self.last_pong_tm - self.last_ping_tm < 0
+                has_pong_arrived_too_late = self.last_pong_tm - self.last_ping_tm > self.ping_timeout
 
-            def check():
-                if (ping_timeout):
-                    has_timeout_expired = time.time() - self.last_ping_tm > ping_timeout
-                    has_pong_not_arrived_after_last_ping = self.last_pong_tm - self.last_ping_tm < 0
-                    has_pong_arrived_too_late = self.last_pong_tm - self.last_ping_tm > ping_timeout
+                if (self.last_ping_tm and
+                        has_timeout_expired and
+                        (has_pong_not_arrived_after_last_ping or has_pong_arrived_too_late)):
+                    raise WebSocketTimeoutException("ping/pong timed out")
+            return True
 
-                    if (self.last_ping_tm and
-                            has_timeout_expired and
-                            (has_pong_not_arrived_after_last_ping or has_pong_arrived_too_late)):
-                        print("ping/pong timed out")
-                        raise WebSocketTimeoutException("ping/pong timed out")
-                return True
+        async def handleDisconnect(e, reconnecting=False):
+            self.has_errored = True
+            self._stop_ping_thread()
+            if not reconnecting:
+                await self._callback(self.on_error, e)
 
-            await dispatcher.read(self.sock.sock, read, check)
-            return False
-
-        except (Exception, KeyboardInterrupt, SystemExit) as e:
-            await self._callback(self.on_error, e)
-
-            if isinstance(e, SystemExit):
-                # propagate SystemExit further
+            if isinstance(e, (KeyboardInterrupt, SystemExit)):
+                await teardown()
+                # Propagate further
                 raise
-            print("WEBSOCKET", type(e), e)
-            await teardown()
-            return not isinstance(e, KeyboardInterrupt)
 
-    def create_dispatcher(self, ping_timeout, dispatcher=None):
+            if reconnect:
+                _logging.info("%s - reconnect" % e)
+                if custom_dispatcher:
+                    _logging.debug("Calling custom dispatcher reconnect [%s frames in stack]" % len(inspect.stack()))
+                    await dispatcher.reconnect(reconnect, setSock)
+            else:
+                _logging.error("%s - goodbye" % e)
+                #print("WEBSOCKET", type(e), e)
+                await teardown()
+
+        custom_dispatcher = bool(dispatcher)
+        dispatcher = self.create_dispatcher(ping_timeout, dispatcher, parse_url(self.url)[3])
+
+        await setSock()
+
+        if not custom_dispatcher and reconnect:
+            while self.keep_running:
+                _logging.debug("Calling dispatcher reconnect [%s frames in stack]" % len(inspect.stack()))
+                await dispatcher.reconnect(reconnect, setSock)
+
+        return self.has_errored
+
+    def create_dispatcher(self, ping_timeout, dispatcher=None, is_ssl=False):
         if dispatcher:  # If custom dispatcher is set, use WrappedDispatcher
             return WrappedDispatcher(self, ping_timeout, dispatcher)
-
-
         timeout = ping_timeout or 10
-
-        if self.sock.is_ssl():
+        if is_ssl:
             return SSLDispatcher(self, timeout)
 
         return Dispatcher(self, timeout)
@@ -450,7 +529,6 @@ class WebSocketApp:
         """
         # Need to catch the case where close_frame is None
         # Otherwise the following if statement causes an error
-
         if not self.on_close or not close_frame:
             return [None, None]
 
@@ -470,5 +548,6 @@ class WebSocketApp:
 
             except Exception as e:
                 _logging.error("error from callback {}: {}".format(callback, e))
+                #print(type(e), e, callback)
                 if self.on_error:
-                    self.on_error(self, e)
+                    await self.on_error(self, e)

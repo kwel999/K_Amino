@@ -1,8 +1,18 @@
-"""
-_core.py
-====================================
-WebSocket Python client
-"""
+import socket
+import struct
+import threading
+import time
+import asyncio
+
+# websocket modules
+from ._abnf import *
+from ._exceptions import *
+from ._handshake import *
+from ._http import *
+from ._logging import *
+from ._socket import *
+from ._ssl_compat import *
+from ._utils import *
 
 """
 _core.py
@@ -22,21 +32,6 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 """
-import socket
-import struct
-import threading
-import time
-import asyncio
-
-# websocket modules
-from ._abnf import *
-from ._exceptions import *
-from ._handshake import *
-from ._http import *
-from ._logging import *
-from ._socket import *
-from ._ssl_compat import *
-from ._utils import *
 
 __all__ = ['WebSocket', 'create_connection']
 
@@ -52,8 +47,11 @@ class WebSocket:
 
     >>> import websocket
     >>> ws = websocket.WebSocket()
-    >>> ws.connect("ws://echo.websocket.org")
+    >>> ws.connect("ws://echo.websocket.events")
+    >>> ws.recv()
+    'echo.websocket.events sponsored by Lob.com'
     >>> ws.send("Hello, Server")
+    19
     >>> ws.recv()
     'Hello, Server'
     >>> ws.close()
@@ -209,7 +207,7 @@ class WebSocket:
         If you set "header" list object, you can set your own custom header.
 
         >>> ws = WebSocket()
-        >>> ws.connect("ws://echo.websocket.org/",
+        >>> ws.connect("ws://echo.websocket.events",
                 ...     header=["User-Agent: MyProgram",
                 ...             "x-custom: header"])
 
@@ -239,6 +237,8 @@ class WebSocket:
             Whitelisted host names that don't use the proxy.
         http_proxy_auth: tuple
             HTTP proxy auth information. Tuple of username and password. Default is None.
+        http_proxy_timeout: int or float
+            HTTP proxy timeout, default is 60 sec as per python-socks.
         redirect_limit: int
             Number of redirects to follow.
         subprotocols: list
@@ -279,6 +279,7 @@ class WebSocket:
         opcode: int
             Operation code (opcode) to send.
         """
+
         frame = ABNF.create_frame(payload, opcode)
         return await self.send_frame(frame)
 
@@ -286,7 +287,7 @@ class WebSocket:
         """
         Send the data frame.
 
-        >>> ws = create_connection("ws://echo.websocket.org/")
+        >>> ws = create_connection("ws://echo.websocket.events")
         >>> frame = ABNF.create_frame("Hello", ABNF.OPCODE_TEXT)
         >>> ws.send_frame(frame)
         >>> cont_frame = ABNF.create_frame("My name is ", ABNF.OPCODE_CONT, 0)
@@ -299,7 +300,6 @@ class WebSocket:
         frame: ABNF frame
             frame data created by ABNF.create_frame
         """
-
         if self.get_mask_key:
             frame.get_mask_key = self.get_mask_key
 
@@ -317,7 +317,7 @@ class WebSocket:
 
         return length
 
-    def send_binary(self, payload):
+    async def send_binary(self, payload):
         """
         Send a binary message (OPCODE_BINARY).
 
@@ -326,7 +326,7 @@ class WebSocket:
         payload: bytes
             payload of message to send.
         """
-        return self.send(payload, ABNF.OPCODE_BINARY)
+        return await self.send(payload, ABNF.OPCODE_BINARY)
 
     async def ping(self, payload=""):
         """
@@ -363,10 +363,8 @@ class WebSocket:
         ----------
         data: string (byte array) value.
         """
-
         with self.readlock:
             opcode, data = await self.recv_data()
-
         if opcode == ABNF.OPCODE_TEXT:
             return data.decode("utf-8")
         elif opcode == ABNF.OPCODE_TEXT or opcode == ABNF.OPCODE_BINARY:
@@ -436,13 +434,12 @@ class WebSocket:
             elif frame.opcode == ABNF.OPCODE_PING:
                 if len(frame.data) < 126:
                     await self.pong(frame.data)
+
                 else:
                     raise WebSocketProtocolException(
                         "Ping message is too long")
-
                 if control_frame:
                     return frame.opcode, frame
-
             elif frame.opcode == ABNF.OPCODE_PONG:
                 if control_frame:
                     return frame.opcode, frame
@@ -502,6 +499,7 @@ class WebSocket:
                         frame = await self.recv_frame()
                         if frame.opcode != ABNF.OPCODE_CLOSE:
                             continue
+
                         if isEnabledForError():
                             recv_status = struct.unpack("!H", frame.data[0:2])[0]
                             if recv_status >= 3000 and recv_status <= 4999:
@@ -511,6 +509,7 @@ class WebSocket:
                         break
                     except:
                         break
+
                 self.sock.settimeout(sock_timeout)
                 await self.sock.shutdown(socket.SHUT_RDWR)
             except:
@@ -559,7 +558,7 @@ def create_connection(url, timeout=None, class_=WebSocket, **options):
     You can customize using 'options'.
     If you set "header" list object, you can set your own custom header.
 
-    >>> conn = create_connection("ws://echo.websocket.org/",
+    >>> conn = create_connection("ws://echo.websocket.events",
          ...     header=["User-Agent: MyProgram",
          ...             "x-custom: header"])
 
@@ -590,6 +589,8 @@ def create_connection(url, timeout=None, class_=WebSocket, **options):
         Whitelisted host names that don't use the proxy.
     http_proxy_auth: tuple
         HTTP proxy auth information. tuple of username and password. Default is None.
+    http_proxy_timeout: int or float
+        HTTP proxy timeout, default is 60 sec as per python-socks.
     enable_multithread: bool
         Enable lock for multithread.
     redirect_limit: int

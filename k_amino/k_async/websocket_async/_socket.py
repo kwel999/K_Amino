@@ -1,6 +1,10 @@
-"""
+import errno
+import selectors
+import socket
 
-"""
+from ._exceptions import *
+from ._ssl_compat import *
+from ._utils import *
 
 """
 _socket.py
@@ -20,13 +24,6 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 """
-import errno
-import selectors
-import socket
-
-from ._exceptions import *
-from ._ssl_compat import *
-from ._utils import *
 
 DEFAULT_SOCKET_OPTION = [(socket.SOL_TCP, socket.TCP_NODELAY, 1)]
 if hasattr(socket, "SO_KEEPALIVE"):
@@ -103,6 +100,7 @@ async def recv(sock, bufsize):
 
         if r:
             return sock.recv(bufsize)
+
     try:
         if sock.gettimeout() == 0:
             bytes_ = sock.recv(bufsize)
@@ -152,10 +150,9 @@ async def send(sock, data):
             pass
         except socket.error as exc:
             error_code = extract_error_code(exc)
-            print(type(exc), exc)
             if error_code is None:
                 raise
-            if error_code != errno.EAGAIN or error_code != errno.EWOULDBLOCK:
+            if error_code != errno.EAGAIN and error_code != errno.EWOULDBLOCK:
                 raise
 
         sel = selectors.DefaultSelector()
@@ -172,13 +169,12 @@ async def send(sock, data):
             return sock.send(data)
         else:
             return await _send()
+            
     except socket.timeout as e:
         message = extract_err_message(e)
-        print(type(e), e)
         raise WebSocketTimeoutException(message)
     except Exception as e:
         message = extract_err_message(e)
-        print(type(e), e)
         if isinstance(message, str) and "timed out" in message:
             raise WebSocketTimeoutException(message)
         else:
