@@ -24,7 +24,7 @@ class AsyncSession(Headers):
         self.secret = user_settings["secret"]
 
         Headers.__init__(self, header_device=self.staticDevice)
-        self.session = AC(proxies=self.proxy, timeout = 20)
+        # self.session = AC(proxies=self.proxy, timeout = 20)
 
         self.deviceId = self.header_device
         self.sidInit()
@@ -52,32 +52,32 @@ class AsyncSession(Headers):
             data = json_minify(dumps(data)) if minify else dumps(data)
 
         try:
-            req = await self.session.post(
-                url=webApi(url) if webRequest else api(url),
-                data=data if isinstance(data, str) else None,
-                files={"file": data} if isinstance(data, BinaryIO) else None,
-                headers=self.web_headers if webRequest else self.updateHeaders(data=data, sid=self.sid)
-                )
-            await self.session.aclose()
+            async with AC(proxies=self.proxy, timeout = 20) as session:
+                req = await session.post(
+                    url=webApi(url) if webRequest else api(url),
+                    data=data if isinstance(data, str) else None,
+                    files={"file": data} if isinstance(data, BinaryIO) else None,
+                    headers=self.web_headers if webRequest else self.updateHeaders(data=data, sid=self.sid)
+                    )
         except Exception:
-            return
+            pass
 
         return CheckExceptions(req.json()) if req.status_code != 200 else req.json()
 
     async def getRequest(self, url: str):
         try:
-            req = await self.session.get(url=api(url), headers=self.updateHeaders())
-            await self.session.aclose()
+            async with AC(proxies=self.proxy, timeout = 20) as session:
+                req = await session.get(url=api(url), headers=self.updateHeaders())
         except Exception:
-            return
+            pass
 
         return CheckExceptions(req.json()) if req.status_code != 200 else req.json()
 
     async def deleteRequest(self, url: str):
         try:
-            req = await self.session.delete(url=api(url), headers=self.updateHeaders())
-            await self.session.aclose()
+            async with AC(proxies=self.proxy, timeout = 20) as session:
+                req = await session.delete(url=api(url), headers=self.updateHeaders())
         except Exception:
-            return
+            pass
 
         return CheckExceptions(req.json()) if req.status_code != 200 else req.json()
