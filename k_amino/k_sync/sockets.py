@@ -159,10 +159,10 @@ class Callbacks(Bot):
 
         self.setCall(getframe(0).f_code.co_name, data)
 
-    def on_alert(self, data): self.call(getframe(0).f_code.co_name, Payload(data["o"]).Payload)
-    def on_member_set_you_host(self, data): self.call(getframe(0).f_code.co_name, Payload(data["o"]).Payload)
-    def on_member_remove_you_cohost(self, data): self.call(getframe(0).f_code.co_name, Payload(data["o"]).Payload)
-    def on_member_set_you_cohost(self, data): self.call(getframe(0).f_code.co_name, Payload(data["o"]).Payload)
+    def on_alert(self, data): self.call(getframe(0).f_code.co_name, Payload(data["o"]["payload"]).Payload)
+    def on_member_set_you_host(self, data): self.call(getframe(0).f_code.co_name, Payload(data["o"]["payload"]).Payload)
+    def on_member_remove_you_cohost(self, data): self.call(getframe(0).f_code.co_name, Payload(data["o"]["payload"]).Payload)
+    def on_member_set_you_cohost(self, data): self.call(getframe(0).f_code.co_name, Payload(data["o"]["payload"]).Payload)
 
     def on_image_message(self, data): self.setCall(getframe(0).f_code.co_name, data)
     def on_youtube_message(self, data): self.setCall(getframe(0).f_code.co_name, data)
@@ -219,7 +219,7 @@ class Callbacks(Bot):
     def on_user_typing_end(self, data): self.call(getframe(0).f_code.co_name, UsersActions(data).UsersActions)
     def on_online_users_update(self, data): self.call(getframe(0).f_code.co_name, UsersActions(data).UsersActions)
 
-    def on_fetch_channel(self, data): self.call(getframe(0).f_code.co_name, Payload(data["o"]).Payload)
+    def on_fetch_channel(self, data): self.call(getframe(0).f_code.co_name, Payload(data["o"]["payload"]).Payload)
 
     def default(self, data): self.call(getframe(0).f_code.co_name, data)
 

@@ -26,7 +26,6 @@ class AsyncCallbacks(Bot):
 
         # if the user want to use the script as a bot
         self.is_bot = is_bot
-        self.lock_command = False
 
         self.handlers = {}
 
@@ -168,7 +167,7 @@ class AsyncCallbacks(Bot):
         return await self.setCall(getframe(0).f_code.co_name, data)
 
     async def on_alert(self, data):
-        if self.is_bot:
+        if self.is_bot and False:
             new_data = Payload(data["o"]["payload"]).Payload
             new_data = self.build_alert_parameters(new_data)
             await self.trigger(new_data, str_only=True)
@@ -176,9 +175,10 @@ class AsyncCallbacks(Bot):
         return await self.call(getframe(0).f_code.co_name, Payload(data["o"]["payload"]).Payload)
 
 
-    async def on_member_set_you_host(self, data): return await self.call(getframe(0).f_code.co_name, Payload(data["o"]).Payload)
-    async def on_member_remove_you_cohost(self, data): return await self.call(getframe(0).f_code.co_name, Payload(data["o"]).Payload)
-    async def on_member_set_you_cohost(self, data): return await self.call(getframe(0).f_code.co_name, Payload(data["o"]).Payload)
+    async def on_member_set_you_host(self, data): return await self.call(getframe(0).f_code.co_name, Payload(data["o"]["payload"]).Payload)
+    async def on_member_remove_you_cohost(self, data): return await self.call(getframe(0).f_code.co_name, Payload(data["o"]["payload"]).Payload)
+    async def on_member_set_you_cohost(self, data): return await self.call(getframe(0).f_code.co_name, Payload(data["o"]["payload"]).Payload)
+    async def on_fetch_channel(self, data): return await self.call(getframe(0).f_code.co_name, Payload(data["o"]["payload"]).Payload)
 
     async def on_image_message(self, data): return await self.setCall(getframe(0).f_code.co_name, data)
     async def on_youtube_message(self, data): return await self.setCall(getframe(0).f_code.co_name, data)
@@ -234,8 +234,6 @@ class AsyncCallbacks(Bot):
     async def on_user_typing_start(self, data): return await self.call(getframe(0).f_code.co_name, UsersActions(data).UsersActions)
     async def on_user_typing_end(self, data): return await self.call(getframe(0).f_code.co_name, UsersActions(data).UsersActions)
     async def on_online_users_update(self, data): return await self.call(getframe(0).f_code.co_name, UsersActions(data).UsersActions)
-
-    async def on_fetch_channel(self, data): return await self.call(getframe(0).f_code.co_name, Payload(data["o"]).Payload)
 
     async def default(self, data): return await self.call(getframe(0).f_code.co_name, data)
 
@@ -649,7 +647,7 @@ class Wss(AsyncCallbacks, WssClient, Headers):
         if self.trace:
             print("[ON-MESSAGE] Received a message . . .")
 
-    async def launch(self):
+    async def launch(self, first_time: bool = True):
         final = f"{self.client.deviceId}|{int(timer.time() * 1000)}"
         self.headers = {
             "NDCDEVICEID": self.client.deviceId,
@@ -671,10 +669,22 @@ class Wss(AsyncCallbacks, WssClient, Headers):
 
         threading.Thread(target=self.run_socket_forever).start()
 
+        if first_time:
+            loop, th = self.start_async()
+            loop = self.submit_async(self.reboot_socket(), loop)
+
+    async def reboot_socket(self):
+        self.run_reboot = True
+        while self.run_reboot:
+            await asyncio.sleep(120)
+            await self.close()
+            await self.launch(False)
+
     def start_async(self):
         loop = asyncio.new_event_loop()
-        threading.Thread(target=loop.run_forever).start()
-        return loop
+        th = threading.Thread(target=loop.run_forever)
+        th.start()
+        return loop, th
 
     def submit_async(self, awaitable, loop):
         return asyncio.run_coroutine_threadsafe(awaitable, loop)
@@ -683,11 +693,18 @@ class Wss(AsyncCallbacks, WssClient, Headers):
         loop.call_soon_threadsafe(loop.stop)
 
     def run_socket_forever(self, **kwargs):
-        loop = self.start_async()
-        loop = self.submit_async(self.socket.run_forever(ping_interval=60), loop)
+        loop, th = self.start_async()
+        self.wss_loop = self.submit_async(self.socket.run_forever(ping_interval=30), loop)
+        self.th = th
 
     async def close(self):
-        await self.socket.close()
+        self.socket._stop_ping_thread()
+        self.socket.keep_running = False
+
+        if self.socket.sock:
+            await self.socket.sock.close()
+
+        self.socket.sock = None
 
         if self.trace:
             print("[CLOSE] closing socket . . .")

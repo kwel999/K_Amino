@@ -255,14 +255,14 @@ class WebSocket:
             for attempt in range(options.pop('redirect_limit', 3)):
                 if self.handshake_response.status in SUPPORTED_REDIRECT_STATUSES:
                     url = self.handshake_response.headers['location']
-                    await self.sock.close()
+                    self.sock.close()
                     self.sock, addrs = await connect(url, self.sock_opt, proxy_info(**options),
                                                options.pop('socket', None))
                     self.handshake_response = await handshake(self.sock, url, *addrs, **options)
             self.connected = True
         except:
             if self.sock:
-                await self.sock.close()
+                self.sock.close()
                 self.sock = None
             raise
 
@@ -468,7 +468,7 @@ class WebSocket:
         """
         if status < 0 or status >= ABNF.LENGTH_16:
             raise ValueError("code is invalid range")
-        
+
         self.connected = False
         await self.send(struct.pack('!H', status) + reason, ABNF.OPCODE_CLOSE)
 
@@ -531,7 +531,7 @@ class WebSocket:
         close socket, immediately.
         """
         if self.sock:
-            await self.sock.close()
+            self.sock.close()
             self.sock = None
             self.connected = False
 
@@ -543,7 +543,7 @@ class WebSocket:
             return await recv(self.sock, bufsize)
         except WebSocketConnectionClosedException:
             if self.sock:
-                await self.sock.close()
+                self.sock.close()
             self.sock = None
             self.connected = False
             raise
