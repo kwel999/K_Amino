@@ -3408,11 +3408,10 @@ class Payload:
     def Payload(self):
         try: self.ndcId = self.json["ndcId"]
         except (KeyError, TypeError): pass
-        try: self.ndcId = self.json["tid"]
+        try: self.chatId = self.json["tid"]
         except (KeyError, TypeError): pass
         try: self.alert = self.json["aps"]["alert"]
         except (KeyError, TypeError): pass
-
         return self
 
 class Event:
