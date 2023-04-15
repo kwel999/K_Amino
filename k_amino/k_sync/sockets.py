@@ -219,8 +219,6 @@ class Callbacks(Bot):
     def on_user_typing_end(self, data): self.call(getframe(0).f_code.co_name, UsersActions(data).UsersActions)
     def on_online_users_update(self, data): self.call(getframe(0).f_code.co_name, UsersActions(data).UsersActions)
 
-    def on_user_typing_start(self, data): self.call(getframe(0).f_code.co_name, Payload(data["o"]).Payload)
-    def on_user_typing_end(self, data): self.call(getframe(0).f_code.co_name, Payload(data["o"]).Payload)
     def on_fetch_channel(self, data): self.call(getframe(0).f_code.co_name, Payload(data["o"]).Payload)
 
     def default(self, data): self.call(getframe(0).f_code.co_name, data)
