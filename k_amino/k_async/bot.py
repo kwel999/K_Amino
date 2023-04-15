@@ -10,6 +10,20 @@ class AsyncBot(AsyncEvents):
         # to make @client.command()
         self.command = self.add_event
 
+    def build_alert_parameters(self, obj_data):
+        message = obj_data.alert.split(": ", 1)
+
+        data = Parameters(data=message[-1], prefix=self.prefix, str_only=True)
+
+        for k, v in obj_data.__dict__.items():
+            setattr(data, k, v)
+
+        data.authorName = message[0]
+        data.comId = obj_data.ndcId
+        data.subClient = data.local = SubClient(comId=data.comId, acm=True)
+
+        return data
+
     def build_parameters(self, obj_data):
         data = Parameters(data=obj_data.message.content, prefix=self.prefix, str_only=True)
 

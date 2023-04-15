@@ -26,11 +26,15 @@ class AsyncCallbacks(Bot):
 
         # if the user want to use the script as a bot
         self.is_bot = is_bot
+        self.lock_command = False
 
         self.handlers = {}
 
         self.methods = {
             10: self._resolve_payload,
+            201: self._resolve_channel,
+            304: self._resolve_chat_action_start,
+            306: self._resolve_chat_action_end,
             400: self._resolve_topics,
             1000: self._resolve_chat_message,
         }
@@ -89,9 +93,16 @@ class AsyncCallbacks(Bot):
         }
 
         self.notif_methods = {
+            "18": self.on_alert,
             "53": self.on_member_set_you_host,
             "67": self.on_member_set_you_cohost,
             "68": self.on_member_remove_you_cohost,
+        }
+
+        self.chat_action_methods = {
+            "fetch-channel": self.on_fetch_channel,
+            "Typing-start": self.on_user_typing_start,
+            "Typing-end": self.on_user_typing_end,
         }
 
         self.topics = {
@@ -101,6 +112,18 @@ class AsyncCallbacks(Bot):
             "users-start-recording-at": self.on_voice_chat_start,
             "users-end-recording-at": self.on_voice_chat_end,
         }
+
+    async def _resolve_chat_action_start(self, data):
+        key = data['o'].get('actions', 0)+"-start"
+        return await self.chat_action_methods.get(key, self.default)(data)
+
+    async def _resolve_chat_action_end(self, data):
+        key = data['o'].get('actions', 0)+"-end"
+        return await self.chat_action_methods.get(key, self.default)(data)
+
+    async def _resolve_channel(self, data):
+            if data['t'] == 201:
+                return await self.chat_action_methods.get("fetch-channel")(data)
 
     async def _resolve_payload(self, data):
         key = f"{data['o']['payload']['notifType']}"
@@ -143,6 +166,15 @@ class AsyncCallbacks(Bot):
             await self.trigger(new_data, str_only=True)
 
         return await self.setCall(getframe(0).f_code.co_name, data)
+
+    async def on_alert(self, data):
+        if self.is_bot:
+            new_data = Payload(data["o"]["payload"]).Payload
+            new_data = self.build_alert_parameters(new_data)
+            await self.trigger(new_data, str_only=True)
+
+        return await self.call(getframe(0).f_code.co_name, Payload(data["o"]["payload"]).Payload)
+
 
     async def on_member_set_you_host(self, data): return await self.call(getframe(0).f_code.co_name, Payload(data["o"]).Payload)
     async def on_member_remove_you_cohost(self, data): return await self.call(getframe(0).f_code.co_name, Payload(data["o"]).Payload)
@@ -202,6 +234,10 @@ class AsyncCallbacks(Bot):
     async def on_user_typing_start(self, data): return await self.call(getframe(0).f_code.co_name, UsersActions(data).UsersActions)
     async def on_user_typing_end(self, data): return await self.call(getframe(0).f_code.co_name, UsersActions(data).UsersActions)
     async def on_online_users_update(self, data): return await self.call(getframe(0).f_code.co_name, UsersActions(data).UsersActions)
+
+    async def on_user_typing_start(self, data): return await self.call(getframe(0).f_code.co_name, Payload(data["o"]).Payload)
+    async def on_user_typing_end(self, data): return await self.call(getframe(0).f_code.co_name, Payload(data["o"]).Payload)
+    async def on_fetch_channel(self, data): return await self.call(getframe(0).f_code.co_name, Payload(data["o"]).Payload)
 
     async def default(self, data): return await self.call(getframe(0).f_code.co_name, data)
 
@@ -629,7 +665,7 @@ class Wss(AsyncCallbacks, WssClient, Headers):
             on_close=self.onClose,
             on_open=self.onOpen,
             on_error=self.onError,
-            header=self.headers,
+            header=self.headers
         )
 
         if self.trace:
