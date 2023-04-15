@@ -436,10 +436,11 @@ class WebSocket:
                     await self.pong(frame.data)
 
                 else:
-                    raise WebSocketProtocolException(
-                        "Ping message is too long")
+                    raise WebSocketProtocolException("Ping message is too long")
+
                 if control_frame:
                     return frame.opcode, frame
+
             elif frame.opcode == ABNF.OPCODE_PONG:
                 if control_frame:
                     return frame.opcode, frame
@@ -467,6 +468,7 @@ class WebSocket:
         """
         if status < 0 or status >= ABNF.LENGTH_16:
             raise ValueError("code is invalid range")
+        
         self.connected = False
         await self.send(struct.pack('!H', status) + reason, ABNF.OPCODE_CLOSE)
 

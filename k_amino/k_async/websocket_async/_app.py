@@ -286,7 +286,6 @@ class WebSocketApp:
                     _logging.debug("Sending ping")
                     await self.sock.ping(self.ping_payload)
                 except Exception as ex:
-                    print("Ping error", type(ex), ex)
                     _logging.debug("Failed to send ping: %s", ex)
 
         self._stop_ping_thread()
@@ -299,7 +298,8 @@ class WebSocketApp:
                     http_proxy_timeout=None,
                     skip_utf8_validation=False,
                     host=None, origin=None, dispatcher=None,
-                    suppress_origin=False, proxy_type=None, reconnect=None):
+                    suppress_origin=False, proxy_type=None, reconnect=None,
+                    do_reconnect=True):
         """
         Run event loop for WebSocket framework.
 
@@ -433,8 +433,8 @@ class WebSocketApp:
                 await self._callback(self.on_open)
 
                 await dispatcher.read(self.sock.sock, read, check)
+
             except (WebSocketConnectionClosedException, ConnectionRefusedError, KeyboardInterrupt, SystemExit, Exception) as e:
-                #print("PART1", type(e), e)
                 await handleDisconnect(e, reconnecting)
 
         async def read():
@@ -445,27 +445,31 @@ class WebSocketApp:
                 op_code, frame = await self.sock.recv_data_frame(True)
             except (WebSocketConnectionClosedException, KeyboardInterrupt) as e:
                 if custom_dispatcher:
-                    #print("PART2", type(e), e)
                     return await handleDisconnect(e)
                 else:
                     raise e
 
             if op_code == ABNF.OPCODE_CLOSE:
                 return await teardown(frame)
+
             elif op_code == ABNF.OPCODE_PING:
                 await self._callback(self.on_ping, frame.data)
+
             elif op_code == ABNF.OPCODE_PONG:
                 self.last_pong_tm = time.time()
                 await self._callback(self.on_pong, frame.data)
+
             elif op_code == ABNF.OPCODE_CONT and self.on_cont_message:
                 await self._callback(self.on_data, frame.data,
                                frame.opcode, frame.fin)
                 await self._callback(self.on_cont_message,
                                frame.data, frame.fin)
+
             else:
                 data = frame.data
                 if op_code == ABNF.OPCODE_TEXT and not skip_utf8_validation:
                     data = data.decode("utf-8")
+
                 await self._callback(self.on_data, data, frame.opcode, True)
                 await self._callback(self.on_message, data)
 
@@ -486,14 +490,13 @@ class WebSocketApp:
         async def handleDisconnect(e, reconnecting=False):
             self.has_errored = True
             self._stop_ping_thread()
+
             if not reconnecting:
                 await self._callback(self.on_error, e)
-
             if isinstance(e, (KeyboardInterrupt, SystemExit)):
                 await teardown()
                 # Propagate further
                 raise
-
             if reconnect:
                 _logging.info("%s - reconnect" % e)
                 if custom_dispatcher:
@@ -501,13 +504,13 @@ class WebSocketApp:
                     await dispatcher.reconnect(reconnect, setSock)
             else:
                 _logging.error("%s - goodbye" % e)
-                #print("WEBSOCKET", type(e), e)
+                # print("WEBSOCKET", type(e), e)
                 await teardown()
 
         custom_dispatcher = bool(dispatcher)
         dispatcher = self.create_dispatcher(ping_timeout, dispatcher, parse_url(self.url)[3])
 
-        await setSock()
+        await setSock(do_reconnect)
 
         if not custom_dispatcher and reconnect:
             while self.keep_running:
@@ -555,6 +558,6 @@ class WebSocketApp:
 
             except Exception as e:
                 _logging.error("error from callback {}: {}".format(callback, e))
-                #print(type(e), e, callback)
+                # print(type(e), e, callback)
                 if self.on_error:
                     await self.on_error(self, [e, callback.__name__])
