@@ -24,6 +24,9 @@ class Callbacks(Bot):
 
         self.methods = {
             10: self._resolve_payload,
+            201: self._resolve_channel,
+            304: self._resolve_chat_action_start,
+            306: self._resolve_chat_action_end,
             400: self._resolve_topics,
             1000: self._resolve_chat_message,
         }
@@ -82,9 +85,16 @@ class Callbacks(Bot):
         }
 
         self.notif_methods = {
+            "18": self.on_alert,
             "53": self.on_member_set_you_host,
             "67": self.on_member_set_you_cohost,
             "68": self.on_member_remove_you_cohost,
+        }
+
+        self.chat_action_methods = {
+            "fetch-channel": self.on_fetch_channel,
+            "Typing-start": self.on_user_typing_start,
+            "Typing-end": self.on_user_typing_end,
         }
 
         self.topics = {
@@ -94,6 +104,18 @@ class Callbacks(Bot):
             "users-start-recording-at": self.on_voice_chat_start,
             "users-end-recording-at": self.on_voice_chat_end,
         }
+
+    def _resolve_chat_action_start(self, data):
+        key = data['o'].get('actions', 0)+"-start"
+        return self.chat_action_methods.get(key, self.default)(data)
+
+    def _resolve_chat_action_end(self, data):
+        key = data['o'].get('actions', 0)+"-end"
+        return self.chat_action_methods.get(key, self.default)(data)
+
+    def _resolve_channel(self, data):
+            if data['t'] == 201:
+                return self.chat_action_methods.get("fetch-channel")(data)
 
     def _resolve_payload(self, data):
         key = f"{data['o']['payload']['notifType']}"
@@ -137,6 +159,7 @@ class Callbacks(Bot):
 
         self.setCall(getframe(0).f_code.co_name, data)
 
+    def on_alert(self, data): self.call(getframe(0).f_code.co_name, Payload(data["o"]).Payload)
     def on_member_set_you_host(self, data): self.call(getframe(0).f_code.co_name, Payload(data["o"]).Payload)
     def on_member_remove_you_cohost(self, data): self.call(getframe(0).f_code.co_name, Payload(data["o"]).Payload)
     def on_member_set_you_cohost(self, data): self.call(getframe(0).f_code.co_name, Payload(data["o"]).Payload)
@@ -195,6 +218,10 @@ class Callbacks(Bot):
     def on_user_typing_start(self, data): self.call(getframe(0).f_code.co_name, UsersActions(data).UsersActions)
     def on_user_typing_end(self, data): self.call(getframe(0).f_code.co_name, UsersActions(data).UsersActions)
     def on_online_users_update(self, data): self.call(getframe(0).f_code.co_name, UsersActions(data).UsersActions)
+
+    def on_user_typing_start(self, data): self.call(getframe(0).f_code.co_name, Payload(data["o"]).Payload)
+    def on_user_typing_end(self, data): self.call(getframe(0).f_code.co_name, Payload(data["o"]).Payload)
+    def on_fetch_channel(self, data): self.call(getframe(0).f_code.co_name, Payload(data["o"]).Payload)
 
     def default(self, data): self.call(getframe(0).f_code.co_name, data)
 
