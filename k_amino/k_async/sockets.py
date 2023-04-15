@@ -235,8 +235,6 @@ class AsyncCallbacks(Bot):
     async def on_user_typing_end(self, data): return await self.call(getframe(0).f_code.co_name, UsersActions(data).UsersActions)
     async def on_online_users_update(self, data): return await self.call(getframe(0).f_code.co_name, UsersActions(data).UsersActions)
 
-    async def on_user_typing_start(self, data): return await self.call(getframe(0).f_code.co_name, Payload(data["o"]).Payload)
-    async def on_user_typing_end(self, data): return await self.call(getframe(0).f_code.co_name, Payload(data["o"]).Payload)
     async def on_fetch_channel(self, data): return await self.call(getframe(0).f_code.co_name, Payload(data["o"]).Payload)
 
     async def default(self, data): return await self.call(getframe(0).f_code.co_name, data)
