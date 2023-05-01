@@ -135,6 +135,24 @@ class AsyncSubClient(Acm, Session):
         )
         return ThreadList(req["threadList"]).ThreadList
 
+    async def full_embed(self, link: str, image: BinaryIO, message: str, chatId: str):
+        data = {
+            "type": 0,
+            "content": message,
+            "extensions": {
+                "linkSnippetList": [{
+                    "link": link,
+                    "mediaType": 100,
+                    "mediaUploadValue": b64encode(image.read()).decode(),
+                    "mediaUploadValueContentType": "image/png"
+                }]
+            },
+            "clientRefId": int(timestamp() / 10 % 100000000),
+            "timestamp": int(timestamp() * 1000),
+            "attachedObject": None
+        }
+        return Json(await self.postRequest(f"/x{self.comId}/s/chat/thread/{chatId}/message", data) 
+
     async def send_message(
         self,
         chatId: str,
