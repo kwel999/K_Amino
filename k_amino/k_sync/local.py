@@ -143,7 +143,7 @@ class SubClient(Acm, Session):
                 "linkSnippetList": [{
                     "link": link,
                     "mediaType": 100,
-                    "mediaUploadValue": base64.b64encode(image.read()).decode(),
+                    "mediaUploadValue": b64encode(image.read()).decode(),
                     "mediaUploadValueContentType": "image/png"
                 }]
             },
