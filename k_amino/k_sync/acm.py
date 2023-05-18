@@ -20,6 +20,18 @@ class Acm(Session):
         req = self.postRequest(f"/x{self.comId}/s/user-profile/{userId}/{rank}")
         return Json(req)
 
+    """
+    def set_push_settings(self, activities: bool = None, broadcasts: bool = None, cid: int = 0):
+        return self.http.post('user-profile/push', dict(
+            pushEnabled=bool(activities or broadcasts),
+            pushExtensions=dict(
+                **dict(communityBroadcastsEnabled=broadcasts) if broadcasts else {},
+                **dict(communityActivitiesEnabled=activities) if activities else {},
+                #systemEnabled=enable
+            )
+        ), cid=cid) 
+    """
+
     def accept_join_request(self, userId: str):
         req = self.postRequest(
             f"/x{self.comId}/s/community/membership-request/{userId}/accept"

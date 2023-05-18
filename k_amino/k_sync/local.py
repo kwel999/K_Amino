@@ -151,7 +151,7 @@ class SubClient(Acm, Session):
             "timestamp": int(timestamp() * 1000),
             "attachedObject": None
         }
-        return Json(self.postRequest(f"/x{self.comId}/s/chat/thread/{chatId}/message", data) 
+        return Json(self.postRequest(f"/x{self.comId}/s/chat/thread/{chatId}/message", data))
 
     def send_message(
         self,
