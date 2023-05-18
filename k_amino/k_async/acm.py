@@ -20,6 +20,17 @@ class AsyncAcm(Session):
         req = await self.postRequest(f"/x{self.comId}/s/user-profile/{userId}/{rank}")
         return Json(req)
 
+    """
+    async def set_push_settings(self, activities: bool = None, broadcasts: bool = None, cid: int = 0):
+        return await self.http.post('user-profile/push', dict(
+            pushEnabled=bool(activities or broadcasts),
+            pushExtensions=dict(
+                **dict(communityBroadcastsEnabled=broadcasts) if broadcasts else {},
+                **dict(communityActivitiesEnabled=activities) if activities else {},
+                #systemEnabled=enable
+            )
+        ), cid=cid) 
+    """
     async def accept_join_request(self, userId: str):
         req = await self.postRequest(
             f"/x{self.comId}/s/community/membership-request/{userId}/accept"

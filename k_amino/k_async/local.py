@@ -10,7 +10,6 @@ from ..lib.objects import *
 from ..lib.async_sessions import AsyncSession as Session
 from .acm import AsyncAcm as Acm
 
-
 class AsyncSubClient(Acm, Session):
     def __init__(self, comId: str, proxies: dict = None, acm: bool = False):
         self.proxies = proxies
@@ -127,12 +126,8 @@ class AsyncSubClient(Acm, Session):
         )
         return UserProfileList(req["userProfileList"]).UserProfileList
 
-    async def get_public_chats(
-        self, filterType: str = "recommended", start: int = 0, size: int = 50
-    ):
-        req = await self.getRequest(
-            f"/x{self.comId}/s/chat/thread?type=public-all&filterType={filterType}&start={start}&size={size}"
-        )
+    async def get_public_chats(self, filterType: str = "recommended", start: int = 0, size: int = 50):
+        req = await self.getRequest(f"/x{self.comId}/s/chat/thread?type=public-all&filterType={filterType}&start={start}&size={size}")
         return ThreadList(req["threadList"]).ThreadList
 
     async def full_embed(self, link: str, image: BinaryIO, message: str, chatId: str):
@@ -151,7 +146,7 @@ class AsyncSubClient(Acm, Session):
             "timestamp": int(timestamp() * 1000),
             "attachedObject": None
         }
-        return Json(await self.postRequest(f"/x{self.comId}/s/chat/thread/{chatId}/message", data) 
+        return Json(await self.postRequest(f"/x{self.comId}/s/chat/thread/{chatId}/message", data))
 
     async def send_message(
         self,

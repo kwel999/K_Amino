@@ -676,7 +676,7 @@ class Wss(AsyncCallbacks, WssClient, Headers):
     async def reboot_socket(self):
         self.run_reboot = True
         while self.run_reboot:
-            await asyncio.sleep(120)
+            await asyncio.sleep(300)
             await self.close()
             await self.launch(False)
 
