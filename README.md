@@ -56,11 +56,25 @@ print(client.sid)
 #### Send a message in chat
 
 ```py
-import k_amino
+from k_amino import(
+Client,
+SubClient
+)
+import getpass
 
-client = k_amino.Client()
-client.login("< email >", "< password >")
-path = client.get_from_link("< chat link >")
-local = k_amino.Local(path.comId)
-local.send_message(path.objectId, "< message >")
+client = Client()
+email = input("email:  ")
+password = getpass.getpass("password:  ")
+client.login(email=email, password=password)
+
+chat_link = client.get_from_link(input("chat link:  "))
+chat_id = chat_link.objectId
+ndc_client = SubClient(comId=chat_link.comId)
+
+
+
+while True:
+    text = input("Your message: ")
+    ndc_client.send_message(chatId=chat_id,message=text, messageType=0)
+    print(f"message sended:  {text}")
 ```
