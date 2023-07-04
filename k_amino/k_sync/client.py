@@ -7,6 +7,7 @@ from uuid import UUID
 
 from ..lib.objects import *
 from ..lib.sessions import Session
+from ..lib.util import updateDevice, generateDevice
 from .sockets import Wss
 
 
@@ -14,7 +15,7 @@ class Client(Wss, Session):
     def __init__(self, deviceId: str = None, proxies: dict = None, trace: bool = False, bot: bool = False):
         self.trace = trace
         self.proxies = proxies
-        self.deviceId = deviceId
+        self.deviceId = updateDevice(deviceId) if deviceId else generateDevice()
 
         Wss.__init__(self, self, trace=self.trace, is_bot=bot)
         Session.__init__(self, proxies=self.proxies, staticDevice=self.deviceId)
