@@ -14,7 +14,7 @@ from .k_async.local import AsyncSubClient
 from .k_async.bot import AsyncBot
 
 
-__version__ = "1.2.2"
+__version__ = "1.4.0"
 
 
 __newest__ = loads(get("https://pypi.python.org/pypi/k-amino.py/json").text)["info"]["version"]
