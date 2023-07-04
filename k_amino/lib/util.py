@@ -28,11 +28,12 @@ def generateSig(data: str) -> str:
 
 def generateDevice(id: Optional[bytes] = None) -> str:
     info = bytes.fromhex(PREFIX) + (id or os.urandom(20))
-    device = device_info + new(
+    device = info + new(
         bytes.fromhex(DEVKEY),
         info, sha1
     ).digest()
-    return device.hex().upper()
+    return device.hex().upper() 
+
 
 
 def updateDevice(device: str) -> str:
