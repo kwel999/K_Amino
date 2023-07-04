@@ -32,7 +32,7 @@ def generateDevice(id: Optional[bytes] = None) -> str:
         bytes.fromhex(DEVKEY),
         info, sha1
     ).digest()
-    return device.hex().upper() 
+    return device.hex().upper()
 
 
 

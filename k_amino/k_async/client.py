@@ -887,6 +887,40 @@ class AsyncClient(Wss, Session):
         req = await self.postRequest("/g/s/auth/register", data)
         return Json(req)
 
+    async def ads_config(
+        self,
+        chatId: str,
+        title: str = None,
+        content: str = None,
+        icon: str = None,
+        background: str = None,
+        ):
+        res, data = [], {"timestamp": int(timestamp() * 1000)}
+
+        if title:
+            data["title"] = title
+
+        if content:
+            data["content"] = content
+
+        if icon:
+            data["icon"] = icon
+
+        if background:
+            data = {
+                "media": [100, background, None],
+                "timestamp": int(timestamp() * 1000),
+            }
+            req = await self.postRequest(
+                f"/g/s/chat/thread/{chatId}/member/{self.uid}/background",
+                data,
+            )
+            res.append(Json(req))
+
+        req = await self.postRequest(f"/g/s/chat/thread/{chatId}", data)
+        res.append(Json(req))
+        return res
+
     async def remove_host(self, chatId: str, userId: str):
         req = await self.deleteRequest(f"/g/s/chat/thread/{chatId}/co-host/{userId}")
         return Json(req)
