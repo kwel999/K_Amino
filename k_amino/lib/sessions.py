@@ -25,6 +25,10 @@ class Session(Headers):
         self.deviceId = self.header_device
         self.sidInit()
 
+    def __del__(self):
+        if id(self) in user_settings:
+            del user_settings[id(self)]
+
     def sidInit(self):
         if self.sid: self.updateHeaders(sid = self.sid)
 
