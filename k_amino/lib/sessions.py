@@ -8,11 +8,7 @@ from .exception import CheckExceptions
 from .headers import Headers
 from .util import *
 
-user_settings = {
-    "sid": None,
-    "userId": None,
-    "secret": None
-}
+user_settings = {}
 
 class Session(Headers):
     def __init__(self, proxies: Union[dict, str] = None, staticDevice: str = None):
@@ -33,16 +29,15 @@ class Session(Headers):
         if self.sid: self.updateHeaders(sid = self.sid)
 
     def settings(self, user_session: str = None, user_userId: str = None, user_secret: str = None):
-        user_settings.update({
+        user_settings = {
             "sid": user_session,
             "userId": user_userId,
             "secret": user_secret
-        })
-
-        self.sid = user_settings["sid"]
-        self.uid = user_settings["userId"]
-        self.secret = user_settings["secret"]
-
+        }
+        user_settings.update({id(self): user_settings})
+        self.sid = user_settings[id(self)]["sid"]
+        self.uid = user_settings[id(self)]["userId"]
+        self.secret = user_settings[id(self)]["secret"]
         self.sidInit()
 
     def postRequest(self, url: str, data: Union[str, dict, BinaryIO] = None, newHeaders: dict = None, webRequest: bool = False, minify: bool = False):
