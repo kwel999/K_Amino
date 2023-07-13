@@ -35,9 +35,9 @@ class Session(Headers):
             "secret": user_secret
         }
         user_settings.update({id(self): user_settings})
-        self.sid = user_settings[id(self)]["sid"]
-        self.uid = user_settings[id(self)]["userId"]
-        self.secret = user_settings[id(self)]["secret"]
+        self.sid = user_session
+        self.uid = user_userId
+        self.secret = user_secret
         self.sidInit()
 
     def postRequest(self, url: str, data: Union[str, dict, BinaryIO] = None, newHeaders: dict = None, webRequest: bool = False, minify: bool = False):
