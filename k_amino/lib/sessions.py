@@ -15,9 +15,9 @@ class Session(Headers):
         self.proxy = proxies
         self.staticDevice = staticDevice
 
-        self.sid = user_settings["sid"]
-        self.uid = user_settings["userId"]
-        self.secret = user_settings["secret"]
+        self.sid = None
+        self.uid = None
+        self.secret = None
 
         Headers.__init__(self, header_device=self.staticDevice)
         self.session = Client(proxies=self.proxy, timeout = 20)
