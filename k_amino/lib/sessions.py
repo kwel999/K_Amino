@@ -33,12 +33,12 @@ class Session(Headers):
         if self.sid: self.updateHeaders(sid = self.sid)
 
     def settings(self, user_session: str = None, user_userId: str = None, user_secret: str = None):
-        user_settings = {
+        new_settings = {
             "sid": user_session,
             "userId": user_userId,
             "secret": user_secret
         }
-        user_settings.update({id(self): user_settings})
+        user_settings.update({id(self): new_settings})
         self.sid = user_session
         self.uid = user_userId
         self.secret = user_secret
