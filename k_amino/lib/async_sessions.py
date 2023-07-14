@@ -8,41 +8,37 @@ from .exception import CheckExceptions
 from .headers import Headers
 from .util import *
 
-user_settings = {
-    "sid": None,
-    "userId": None,
-    "secret": None
-}
+user_settings = {}
+
 
 class AsyncSession(Headers):
     def __init__(self, proxies: Union[dict, str] = None, staticDevice: str = None):
         self.proxy = proxies
         self.staticDevice = staticDevice
-
-        self.sid = user_settings["sid"]
-        self.uid = user_settings["userId"]
-        self.secret = user_settings["secret"]
-
+        self.sid = None
+        self.uid = None
+        self.secret = None
         Headers.__init__(self, header_device=self.staticDevice)
-        # self.session = AC(proxies=self.proxy, timeout = 20)
-
         self.deviceId = self.header_device
         self.sidInit()
+
+    def __del__(self):
+        if id(self) in user_settings:
+            del user_settings[id(self)]
 
     def sidInit(self):
         if self.sid: self.updateHeaders(sid = self.sid)
 
     def settings(self, user_session: str = None, user_userId: str = None, user_secret: str = None):
-        user_settings.update({
+        new_settings = {
             "sid": user_session,
             "userId": user_userId,
             "secret": user_secret
-        })
-
-        self.sid = user_settings["sid"]
-        self.uid = user_settings["userId"]
-        self.secret = user_settings["secret"]
-
+        }
+        user_settings.update({id(self): new_settings})
+        self.sid = user_session
+        self.uid = user_userId
+        self.secret = user_secret
         self.sidInit()
 
     async def postRequest(self, url: str, data: Union[str, dict, BinaryIO] = None, newHeaders: dict = None, webRequest: bool = False, minify: bool = False):
