@@ -8,8 +8,11 @@ You can use either `python3 setup.py install` or `pip3 install k-amino.py` to in
 k_amino is open source module, anyone can contribute. Please see the [Github Repository](https://github.com/Kwel999/k_amino)
 
 ## Discord
-You can join the [Discord Server](https://discord.gg/vhBtt2QB) to add suggestions or to report problems
+You can join the [Discord Server](https://discord.gg/wGRQYd3nVd) to add suggestions or to report problems
 and to get new updates and changes
+
+## Youtube Channel
+you can check this [youtube channel](https://youtube.com/@KWELATEYOURPIZZA) for more information about script and bots
 
 ## Features
 - Faster than other [Aminoapps](https://aminoapps.com/) python modules
