@@ -1,21 +1,19 @@
 from setuptools import setup, find_packages
-from k_amino import __version__
+import k_amino
 
 with open("README.md", "r") as stream:
     README = stream.read()
 
-
 setup(
-    name="k-amino.py",
-    version=__version__,
-    url="https://github.com/kwel999/KAmino",
-    download_url="https://github.com/kwel999/KAmino/archive/refs/heads/main.zip",
-    description="Amino Bots with python!",
+    name=k_amino.__title__,
+    description=k_amino.__description__,
+    version=k_amino.__version__,
+    url=k_amino.__url__,
     long_description=README,
     long_description_content_type="text/markdown",
-    author="KWEL",
-    author_email="itskwel999@gmail.com",
-    license="Apache",
+    author=k_amino.__author__,
+    author_email=k_amino.__author_email__,
+    license=k_amino.__license__,
     keywords=[
         "api",
         "python",
@@ -43,14 +41,12 @@ setup(
     ],
     include_package_data=True,
     install_requires=[
-        "JSON_minify",
+        "json_minify",
         "httpx",
-        "setuptools",
-        "aiohttp",
-        "websocket-client==1.3.1",
-        "websockets",
-        "ujson",
         "requests",
+        "setuptools",
+        "websocket-client==1.3.1",
+        "ujson",
         "easy-events==2.8.2"
     ],
     setup_requires=["wheel"],

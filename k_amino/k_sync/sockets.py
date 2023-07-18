@@ -1,27 +1,31 @@
-# those sockets are based on: Amino-Sockets & Amino.py
-
+from __future__ import annotations
 import threading
 import time as timer
-from sys import _getframe as getframe
-from typing import Union
-
-import ujson as json
+try:
+    import ujson as json
+except ImportError:
+    import json
 import websocket
-
+from functools import wraps
+from inspect import signature as fsignature
+from typing import Any, Callable, Dict, List, Optional, TYPE_CHECKING, Union
 from ..lib import *
 from ..lib.objects import *
 from .bot import Bot
+if TYPE_CHECKING:
+    from .client import Client
 
+__all__ = (
+    'Actions',
+    'SetAction'
+)
 
 class Callbacks(Bot):
-    def __init__(self, is_bot: bool = False, prefix: str = "!"):
+    def __init__(self, is_bot: bool = False, prefix: str = "!") -> None:
         Bot.__init__(self, prefix=prefix)
-
         # if the user want to use the script as a bot
         self.is_bot = is_bot
-
-        self.handlers = {}
-
+        self.handlers: Dict[str, List[Callable[[Any], Any]]] = {}
         self.methods = {
             10: self._resolve_payload,
             201: self._resolve_channel,
@@ -30,7 +34,6 @@ class Callbacks(Bot):
             400: self._resolve_topics,
             1000: self._resolve_chat_message,
         }
-
         self.chat_methods = {
             "0:0": self.on_text_message,
             "0:100": self.on_image_message,
@@ -83,20 +86,17 @@ class Callbacks(Bot):
             "65282:0": self.on_welcome_message,
             "65283:0": self.on_invite_message,
         }
-
         self.notif_methods = {
             "18": self.on_alert,
             "53": self.on_member_set_you_host,
             "67": self.on_member_set_you_cohost,
             "68": self.on_member_remove_you_cohost,
         }
-
         self.chat_action_methods = {
             "fetch-channel": self.on_fetch_channel,
             "Typing-start": self.on_user_typing_start,
             "Typing-end": self.on_user_typing_end,
         }
-
         self.topics = {
             "online-members": self.on_online_users_update,
             "users-start-typing-at": self.on_user_typing_start,
@@ -105,155 +105,331 @@ class Callbacks(Bot):
             "users-end-recording-at": self.on_voice_chat_end,
         }
 
-    def _resolve_chat_action_start(self, data):
-        key = data['o'].get('actions', 0)+"-start"
+    def _resolve_payload(self, data: dict) -> Any:
+        key = str(data['o']['payload']['notifType'])
+        return self.notif_methods.get(key, self.default)(data)
+
+    def _resolve_channel(self, data: dict) -> Any:
+        return self.chat_action_methods["fetch-channel"](data)
+
+    def _resolve_chat_action_start(self, data: dict) -> Any:
+        key = data['o']['actions'] + "-start"
         return self.chat_action_methods.get(key, self.default)(data)
 
-    def _resolve_chat_action_end(self, data):
-        key = data['o'].get('actions', 0)+"-end"
+    def _resolve_chat_action_end(self, data: dict) -> Any:
+        key = data['o']['actions'] + "-end"
         return self.chat_action_methods.get(key, self.default)(data)
 
-    def _resolve_channel(self, data):
-            if data['t'] == 201:
-                return self.chat_action_methods.get("fetch-channel")(data)
+    def _resolve_topics(self, data: dict) -> Any:
+        key = str(data["o"]["topic"]).split(":")[2]
+        return self.topics.get(key, self.default)(data)
 
-    def _resolve_payload(self, data):
-        key = f"{data['o']['payload']['notifType']}"
-        return self.notif_methods.get(key)(data)
-
-    def _resolve_chat_message(self, data):
+    def _resolve_chat_message(self, data: dict) -> Any:
         key = f"{data['o']['chatMessage']['type']}:{data['o']['chatMessage'].get('mediaType', 0)}"
-        return self.chat_methods.get(key)(data)
+        return self.chat_methods.get(key, self.default)(data)
 
-    def _resolve_topics(self, data):
-        key = str(data["o"].get("topic", 0)).split(":")[2]
-        return self.topics.get(key)(data)
+    def resolve(self, data: dict) -> Any:
+        return self.methods.get(data["t"], self.default)(data)
 
-    def resolve(self, data):
-        data = json.loads(data)
-        return self.methods.get(data["t"])(data)
-
-    def call(self, callType, data):
+    def call(self, callType: str, data: Any) -> None:
         if self.handlers.get(callType):
             for handler in self.handlers[callType]:
                 handler(data)
 
-    def event(self, eventType):
-        def registerHandler(handler):
+    def event(self, eventType: str):
+        def registerHandler(handler: Callable):
             if self.handlers.get(eventType):
                 self.handlers[eventType].append(handler)
             else:
                 self.handlers[eventType] = [handler]
             return handler
-
         return registerHandler
 
-    def setCall(self, name, data):
-        self.call(name, Event(data["o"]).Event)
+    @staticmethod
+    def create_event(func):
+        @wraps(func)
+        def event(self: Callbacks, *args: Any, **kwargs: Any) -> None:
+            data = func(self, *args, **kwargs)
+            self.call(func.__name__, data)
+        event.__signature__ = fsignature(func) # type: ignore
+        return event
 
-    def on_text_message(self, data):
+    @staticmethod
+    def convert_event(data: Union[Dict[str, Any], Event]) -> Event:
+        return Event(data["o"]).Event if not isinstance(data, Event) else data
+
+    @staticmethod
+    def convert_payload(data: Union[Dict[str, Any], Payload]) -> Payload:
+        return Payload(data["o"]["payload"]).Payload if not isinstance(data, Payload) else data
+
+    @staticmethod
+    def convert_action(data: Union[Dict[str, Any], UsersActions]) -> UsersActions:
+        return UsersActions(data).UsersActions
+
+    @create_event
+    def on_alert(self, data: Union[dict, Payload]) -> Optional[Payload]:
+        return self.convert_payload(data)
+
+    @create_event
+    def on_member_set_you_host(self, data: Union[dict, Payload]) -> Optional[Payload]:
+        return self.convert_payload(data)
+
+    @create_event
+    def on_member_remove_you_cohost(self, data: Union[dict, Payload]) -> Optional[Payload]:
+        return self.convert_payload(data)
+
+    @create_event
+    def on_member_set_you_cohost(self, data: Union[dict, Payload]) -> Optional[Payload]:
+        return self.convert_payload(data)
+
+    @create_event
+    def on_text_message(self, data: Union[dict, Event]) -> Optional[Event]:
+        data = self.convert_event(data)
         if self.is_bot:
-            new_data = Event(data["o"]).Event
-            new_data = self.build_parameters(new_data)
-            self.trigger(new_data, str_only=True)
+            self.trigger(self.build_parameters(data), str_only=True)
+        return data
 
-        self.setCall(getframe(0).f_code.co_name, data)
+    @create_event
+    def on_image_message(self, data: Union[dict, Event]) -> Optional[Event]:
+        return self.convert_event(data)
 
-    def on_alert(self, data): self.call(getframe(0).f_code.co_name, Payload(data["o"]["payload"]).Payload)
-    def on_member_set_you_host(self, data): self.call(getframe(0).f_code.co_name, Payload(data["o"]["payload"]).Payload)
-    def on_member_remove_you_cohost(self, data): self.call(getframe(0).f_code.co_name, Payload(data["o"]["payload"]).Payload)
-    def on_member_set_you_cohost(self, data): self.call(getframe(0).f_code.co_name, Payload(data["o"]["payload"]).Payload)
+    @create_event
+    def on_youtube_message(self, data: Union[dict, Event]) -> Optional[Event]:
+        return self.convert_event(data)
 
-    def on_image_message(self, data): self.setCall(getframe(0).f_code.co_name, data)
-    def on_youtube_message(self, data): self.setCall(getframe(0).f_code.co_name, data)
-    def on_strike_message(self, data): self.setCall(getframe(0).f_code.co_name, data)
-    def on_voice_message(self, data): self.setCall(getframe(0).f_code.co_name, data)
-    def on_sticker_message(self, data): self.setCall(getframe(0).f_code.co_name, data)
-    def TYPE_USER_SHARE_EXURL(self, data): self.setCall(getframe(0).f_code.co_name, data)
-    def TYPE_USER_SHARE_USER(self, data): self.setCall(getframe(0).f_code.co_name, data)
-    def on_voice_chat_not_answered(self, data): self.setCall(getframe(0).f_code.co_name, data)
-    def on_voice_chat_not_cancelled(self, data): self.setCall(getframe(0).f_code.co_name, data)
-    def on_voice_chat_not_declined(self, data): self.setCall(getframe(0).f_code.co_name, data)
-    def on_video_chat_not_answered(self, data): self.setCall(getframe(0).f_code.co_name, data)
-    def on_video_chat_not_cancelled(self, data): self.setCall(getframe(0).f_code.co_name, data)
-    def on_video_chat_not_declined(self, data): self.setCall(getframe(0).f_code.co_name, data)
-    def on_avatar_chat_not_answered(self, data): self.setCall(getframe(0).f_code.co_name, data)
-    def on_avatar_chat_not_cancelled(self, data): self.setCall(getframe(0).f_code.co_name, data)
-    def on_avatar_chat_not_declined(self, data): self.setCall(getframe(0).f_code.co_name, data)
-    def on_delete_message(self, data): self.setCall(getframe(0).f_code.co_name, data)
-    def on_group_member_join(self, data): self.setCall(getframe(0).f_code.co_name, data)
-    def on_group_member_leave(self, data): self.setCall(getframe(0).f_code.co_name, data)
-    def on_chat_invite(self, data): self.setCall(getframe(0).f_code.co_name, data)
-    def on_chat_background_changed(self, data): self.setCall(getframe(0).f_code.co_name, data)
-    def on_chat_title_changed(self, data): self.setCall(getframe(0).f_code.co_name, data)
-    def on_chat_icon_changed(self, data): self.setCall(getframe(0).f_code.co_name, data)
-    def on_voice_chat_start(self, data): self.setCall(getframe(0).f_code.co_name, data)
-    def on_video_chat_start(self, data): self.setCall(getframe(0).f_code.co_name, data)
-    def on_avatar_chat_start(self, data): self.setCall(getframe(0).f_code.co_name, data)
-    def on_voice_chat_end(self, data): self.setCall(getframe(0).f_code.co_name, data)
-    def on_video_chat_end(self, data): self.setCall(getframe(0).f_code.co_name, data)
-    def on_avatar_chat_end(self, data): self.setCall(getframe(0).f_code.co_name, data)
-    def on_chat_content_changed(self, data): self.setCall(getframe(0).f_code.co_name, data)
-    def on_screen_room_start(self, data): self.setCall(getframe(0).f_code.co_name, data)
-    def on_screen_room_end(self, data): self.setCall(getframe(0).f_code.co_name, data)
-    def on_chat_host_transfered(self, data): self.setCall(getframe(0).f_code.co_name, data)
-    def on_text_message_force_removed(self, data): self.setCall(getframe(0).f_code.co_name, data)
-    def on_chat_removed_message(self, data): self.setCall(getframe(0).f_code.co_name, data)
-    def on_text_message_removed_by_admin(self, data): self.setCall(getframe(0).f_code.co_name, data)
-    def on_chat_tip(self, data): self.setCall(getframe(0).f_code.co_name, data)
-    def on_chat_pin_announcement(self, data): self.setCall(getframe(0).f_code.co_name, data)
-    def on_voice_chat_permission_open_to_everyone(self, data): self.setCall(getframe(0).f_code.co_name, data)
-    def on_voice_chat_permission_invited_and_requested(self, data): self.setCall(getframe(0).f_code.co_name, data)
-    def on_voice_chat_permission_invite_only(self, data): self.setCall(getframe(0).f_code.co_name, data)
-    def on_chat_view_only_enabled(self, data): self.setCall(getframe(0).f_code.co_name, data)
-    def on_chat_view_only_disabled(self, data): self.setCall(getframe(0).f_code.co_name, data)
-    def on_chat_unpin_announcement(self, data): self.setCall(getframe(0).f_code.co_name, data)
-    def on_chat_tipping_enabled(self, data): self.setCall(getframe(0).f_code.co_name, data)
-    def on_chat_tipping_disabled(self, data): self.setCall(getframe(0).f_code.co_name, data)
-    def on_timestamp_message(self, data): self.setCall(getframe(0).f_code.co_name, data)
+    @create_event
+    def on_strike_message(self, data: Union[dict, Event]) -> Optional[Event]:
+        return self.convert_event(data)
 
-    def on_welcome_message(self, data): self.setCall(getframe(0).f_code.co_name, data)
-    def on_invite_message(self, data): self.setCall(getframe(0).f_code.co_name, data)
+    @create_event
+    def on_voice_message(self, data: Union[dict, Event]) -> Optional[Event]:
+        return self.convert_event(data)
 
-    def on_user_typing_start(self, data): self.call(getframe(0).f_code.co_name, UsersActions(data).UsersActions)
-    def on_user_typing_end(self, data): self.call(getframe(0).f_code.co_name, UsersActions(data).UsersActions)
-    def on_online_users_update(self, data): self.call(getframe(0).f_code.co_name, UsersActions(data).UsersActions)
+    @create_event
+    def on_sticker_message(self, data: Union[dict, Event]) -> Optional[Event]:
+        return self.convert_event(data)
 
-    def on_fetch_channel(self, data): self.call(getframe(0).f_code.co_name, Payload(data["o"]["payload"]).Payload)
+    @create_event
+    def TYPE_USER_SHARE_EXURL(self, data: Union[dict, Event]) -> Optional[Event]:
+        return self.convert_event(data)
 
-    def default(self, data): self.call(getframe(0).f_code.co_name, data)
+    @create_event
+    def TYPE_USER_SHARE_USER(self, data: Union[dict, Event]) -> Optional[Event]:
+        return self.convert_event(data)
+
+    @create_event
+    def on_voice_chat_not_answered(self, data: Union[dict, Event]) -> Optional[Event]:
+        return self.convert_event(data)
+
+    @create_event
+    def on_voice_chat_not_cancelled(self, data: Union[dict, Event]) -> Optional[Event]:
+        return self.convert_event(data)
+
+    @create_event
+    def on_voice_chat_not_declined(self, data: Union[dict, Event]) -> Optional[Event]:
+        return self.convert_event(data)
+
+    @create_event
+    def on_video_chat_not_answered(self, data: Union[dict, Event]) -> Optional[Event]:
+        return self.convert_event(data)
+
+    @create_event
+    def on_video_chat_not_cancelled(self, data: Union[dict, Event]) -> Optional[Event]:
+        return self.convert_event(data)
+
+    @create_event
+    def on_video_chat_not_declined(self, data: Union[dict, Event]) -> Optional[Event]:
+        return self.convert_event(data)
+
+    @create_event
+    def on_avatar_chat_not_answered(self, data: Union[dict, Event]) -> Optional[Event]:
+        return self.convert_event(data)
+
+    @create_event
+    def on_avatar_chat_not_cancelled(self, data: Union[dict, Event]) -> Optional[Event]:
+        return self.convert_event(data)
+
+    @create_event
+    def on_avatar_chat_not_declined(self, data: Union[dict, Event]) -> Optional[Event]:
+        return self.convert_event(data)
+
+    @create_event
+    def on_delete_message(self, data: Union[dict, Event]) -> Optional[Event]:
+        return self.convert_event(data)
+
+    @create_event
+    def on_group_member_join(self, data: Union[dict, Event]) -> Optional[Event]:
+        return self.convert_event(data)
+
+    @create_event
+    def on_group_member_leave(self, data: Union[dict, Event]) -> Optional[Event]:
+        return self.convert_event(data)
+
+    @create_event
+    def on_chat_invite(self, data: Union[dict, Event]) -> Optional[Event]:
+        return self.convert_event(data)
+
+    @create_event
+    def on_chat_background_changed(self, data: Union[dict, Event]) -> Optional[Event]:
+        return self.convert_event(data)
+
+    @create_event
+    def on_chat_title_changed(self, data: Union[dict, Event]) -> Optional[Event]:
+        return self.convert_event(data)
+
+    @create_event
+    def on_chat_icon_changed(self, data: Union[dict, Event]) -> Optional[Event]:
+        return self.convert_event(data)
+
+    @create_event
+    def on_voice_chat_start(self, data: Union[dict, Event]) -> Optional[Event]:
+        return self.convert_event(data)
+
+    @create_event
+    def on_video_chat_start(self, data: Union[dict, Event]) -> Optional[Event]:
+        return self.convert_event(data)
+
+    @create_event
+    def on_avatar_chat_start(self, data: Union[dict, Event]) -> Optional[Event]:
+        return self.convert_event(data)
+
+    @create_event
+    def on_voice_chat_end(self, data: Union[dict, Event]) -> Optional[Event]:
+        return self.convert_event(data)
+
+    @create_event
+    def on_video_chat_end(self, data: Union[dict, Event]) -> Optional[Event]:
+        return self.convert_event(data)
+
+    @create_event
+    def on_avatar_chat_end(self, data: Union[dict, Event]) -> Optional[Event]:
+        return self.convert_event(data)
+
+    @create_event
+    def on_chat_content_changed(self, data: Union[dict, Event]) -> Optional[Event]:
+        return self.convert_event(data)
+
+    @create_event
+    def on_screen_room_start(self, data: Union[dict, Event]) -> Optional[Event]:
+        return self.convert_event(data)
+
+    @create_event
+    def on_screen_room_end(self, data: Union[dict, Event]) -> Optional[Event]:
+        return self.convert_event(data)
+
+    @create_event
+    def on_chat_host_transfered(self, data: Union[dict, Event]) -> Optional[Event]:
+        return self.convert_event(data)
+
+    @create_event
+    def on_text_message_force_removed(self, data: Union[dict, Event]) -> Optional[Event]:
+        return self.convert_event(data)
+
+    @create_event
+    def on_chat_removed_message(self, data: Union[dict, Event]) -> Optional[Event]:
+        return self.convert_event(data)
+
+    @create_event
+    def on_text_message_removed_by_admin(self, data: Union[dict, Event]) -> Optional[Event]:
+        return self.convert_event(data)
+
+    @create_event
+    def on_chat_tip(self, data: Union[dict, Event]) -> Optional[Event]:
+        return self.convert_event(data)
+
+    @create_event
+    def on_chat_pin_announcement(self, data: Union[dict, Event]) -> Optional[Event]:
+        return self.convert_event(data)
+
+    @create_event
+    def on_voice_chat_permission_open_to_everyone(self, data: Union[dict, Event]) -> Optional[Event]:
+        return self.convert_event(data)
+
+    @create_event
+    def on_voice_chat_permission_invited_and_requested(self, data: Union[dict, Event]) -> Optional[Event]:
+        return self.convert_event(data)
+
+    @create_event
+    def on_voice_chat_permission_invite_only(self, data: Union[dict, Event]) -> Optional[Event]:
+        return self.convert_event(data)
+
+    @create_event
+    def on_chat_view_only_enabled(self, data: Union[dict, Event]) -> Optional[Event]:
+        return self.convert_event(data)
+
+    @create_event
+    def on_chat_view_only_disabled(self, data: Union[dict, Event]) -> Optional[Event]:
+        return self.convert_event(data)
+
+    @create_event
+    def on_chat_unpin_announcement(self, data: Union[dict, Event]) -> Optional[Event]:
+        return self.convert_event(data)
+
+    @create_event
+    def on_chat_tipping_enabled(self, data: Union[dict, Event]) -> Optional[Event]:
+        return self.convert_event(data)
+
+    @create_event
+    def on_chat_tipping_disabled(self, data: Union[dict, Event]) -> Optional[Event]:
+        return self.convert_event(data)
+
+    @create_event
+    def on_timestamp_message(self, data: Union[dict, Event]) -> Optional[Event]:
+        return self.convert_event(data)
+
+    @create_event
+    def on_welcome_message(self, data: Union[dict, Event]) -> Optional[Event]:
+        return self.convert_event(data)
+
+    @create_event
+    def on_invite_message(self, data: Union[dict, Event]) -> Optional[Event]:
+        return self.convert_event(data)
+
+    @create_event
+    def on_user_typing_start(self, data: Union[dict, UsersActions]) -> Optional[UsersActions]:
+        return self.convert_action(data)
+
+    @create_event
+    def on_user_typing_end(self, data: Union[dict, UsersActions]) -> Optional[UsersActions]:
+        return self.convert_action(data)
+
+    @create_event
+    def on_online_users_update(self, data: Union[dict, UsersActions]) -> Optional[UsersActions]:
+        return self.convert_action(data)
+
+    @create_event
+    def on_fetch_channel(self, data: Union[dict, Payload]) -> Optional[Payload]:
+        return self.convert_payload(data)
+
+    @create_event
+    def default(self, data: dict) -> Optional[dict]:
+        return data
 
 
 class SetAction:
-    def __init__(self, wss, data):
+    def __init__(self, wss: Wss, data: Dict[str, Any]) -> None:
         self.action = data
         self.wss = wss
 
-    def start(self):
-        """
-        Start the Action
-        """
+    def start(self) -> None:
+        """Start the Action."""
         self.wss.send(self.action)
 
-    def stop(self):
-        """
-        Get back to the last board
-        """
+    def stop(self) -> None:
+        """Get back to the last board."""
         act = self.action
         act["t"] = 303
         self.wss.send(self.action)
 
 
 class Actions:
-    def __init__(self, socket, comId, chatId):
+    def __init__(self, socket: Wss, comId: int, chatId: str) -> None:
         self.socket = socket
         self.chatId = chatId
         self.comId = comId
 
-    def setDefaultAction(self):
-        """
-        Default Browsing
-        """
+    def setDefaultAction(self) -> None:
+        """Default browsing."""
         SetAction(
             self.socket,
             {
@@ -268,46 +444,53 @@ class Actions:
             },
         ).start()
 
-    def Browsing(self, blogId: str = None, blogType: int = 0):
-        """
-        Send Browsing Action
+    def Browsing(self, blogId: Optional[str] = None) -> SetAction:
+        """Send browsing action.
 
-        **Parameters**
-            - **blogId**: target blogId (str)
-            - **blogType**: Type Of the Blog *poll & blog & wiki* (int)
+        Parameters
+        ----------
+        blogId : str, optional
+            The target blog, quiz, poll ID. Default is None.
 
-        **Return**
-            - **SetAction**:  (Class)
+        Returns
+        -------
+        SetAction
+            The action object.
+
         """
         target = f"ndc://x{self.comId}/featured"
-
-        if blogId and blogType:
-            target = f"ndc://x{self.comId}/blog/"
-
         data = {
             "o": {
                 "actions": ["Browsing"],
                 "target": target,
                 "ndcId": int(self.comId),
-                "params": {"blogType": blogType},
                 "id": "363483",
             },
             "t": 306,
         }
+        if blogId:
+            target = f"ndc://x{self.comId}/blog/"
+            data["o"]["params"] = {"blogType": 1}
         self.setDefaultAction()
         return SetAction(self.socket, data)
 
-    def Chatting(self, threadId: str = None, threadType: int = 2):
+    def Chatting(self, threadId: Optional[str] = None, threadType: int = 2) -> SetAction:
+        """Send chatting action.
+
+        Paramaters
+        ----------
+        threadType :
+            The chat type. Default is 2.
+                0: DM
+                1: Private
+                2: Public
+
+        Returns
+        -------
+        SetAction
+            The action object.
+
         """
-        Send Chatting Action
-
-        **Paramaters**
-            - **threadType**: 2 For Public 1 & 0 For Private (int)
-
-        **Return**
-            - **SetAction**:  (Class)
-        """
-
         data = {
             "o": {
                 "actions": ["Chatting"],
@@ -323,15 +506,16 @@ class Actions:
             },
             "t": 306,
         }
-        # self.defaultData()
         return SetAction(self.socket, data)
 
-    def PublicChats(self):
-        """
-        Send PublicChats Action
+    def PublicChats(self) -> SetAction:
+        """Send public chats action.
 
-        **Return**
-            - **SetAction**:  (Class)
+        Returns
+        -------
+        SetAction
+            The action object.
+
         """
         data = {
             "o": {
@@ -346,12 +530,14 @@ class Actions:
         self.setDefaultAction()
         return SetAction(self.socket, data)
 
-    def LeaderBoards(self):
-        """
-        Send LeaderBoard Action
+    def LeaderBoards(self) -> SetAction:
+        """Send leaderboard action.
 
-        **Return**
-            - **SetAction**:  (Class)
+        Returns
+        ------
+        SetAction
+            The action object.
+
         """
         data = {
             "o": {
@@ -366,17 +552,23 @@ class Actions:
         self.setDefaultAction()
         return SetAction(self.socket, data)
 
-    def Custom(self, actions: Union[str, list], target: str, params: dict):
-        """
-        Send Custom Action
+    def Custom(self, actions: List[str], target: str, params: Dict[str, Any]) -> SetAction:
+        """Send custom action.
 
-        **Parameters**
-            - **actions**: List of action Types (list[str])
-            - **target**: Example | ndc://x000000/leaderboards (str)
-            - **params**: Set the blogType and more with params (dict)
+        Parameters
+        ----------
+        actions : list
+            The action type list.
+        target : str
+            The target ndc url.
+        params : dict
+            Others params (blogType, duration, threadType, threadId, etc).
 
-        **Return**
-            - **SetAction**:  (Class)
+        Returns
+        -------
+        SetAction
+            The action object.
+
         """
         data = {
             "o": {
@@ -393,31 +585,35 @@ class Actions:
 
 
 class WssClient:
-    def __init__(self, wss):
+    def __init__(self, wss: Wss) -> None:
         self.wss = wss
 
-    def joinVoiceChat(self, comId: str, chatId: str, joinType: int = 1):
-
+    def joinVoiceChat(self, comId: int, chatId: str, joinType: int = 1) -> None:
         data = {
             "o": {
-                "ndcId": int(comId),
+                "ndcId": comId,
                 "threadId": chatId,
                 "joinRole": joinType,
                 "id": "37549515",
             },
             "t": 112,
         }
-        timer.sleep(2.2)
         self.wss.send(data)
 
-    def joinVideoChat(self, comId: str, chatId: str, joinType: int = 1):
-        """
-        Join The Video Chat
+    def joinVideoChat(self, comId: int, chatId: str, joinType: int = 1) -> None:
+        """Join The Video Chat
 
-        **Parameters**
-            - **comId**: ID of the Community (str)
-            - **chatId**: ID of the Chat (str)
-            - **joinType**: Join type to Join Video as.. (int)
+        Parameters
+        ----------
+        comId : int
+            The community ID.
+        chatId : str
+            The chat ID to join.
+        joinType : int
+            The join role. Default is 1.
+                1: owner
+                2: viewer
+
         """
         data = {
             "o": {
@@ -429,28 +625,28 @@ class WssClient:
             },
             "t": 108,
         }
-        timer.sleep(2.2)
         self.wss.send(data)
 
-    def startVoiceChat(self, comId, chatId: str, joinType: int = 1):
-        """
-        Start The Voice Chat
+    def startVoiceChat(self, comId: int, chatId: str) -> None:
+        """Start the voice chat.
 
-        **Parameters**
-            - **comId**: ID of the Community (str)
-            - **chatId**: ID of the Chat (str)
-            - **joinType**: Join type to Start voice as.. (int)
+        Parameters
+        ----------
+        comId : int
+            The community ID.
+        chatId : str
+            The chat ID to start the live mode.
+
         """
         data = {
             "o": {
                 "ndcId": comId,
                 "threadId": chatId,
-                "joinRole": joinType,
-                "id": "2154531",
+                "joinRole": 1,
+                "id": "2154531"
             },
             "t": 112,
         }
-        timer.sleep(2.2)
         self.wss.send(data)
         data = {
             "o": {
@@ -461,54 +657,56 @@ class WssClient:
             },
             "t": 108,
         }
-        timer.sleep(2.2)
         self.wss.send(data)
 
-    def endVoiceChat(self, comId: str, chatId: str, leaveType: int = 2):
-        """
-        End The Voice Chat
+    def endVoiceChat(self, comId: int, chatId: str) -> None:
+        """End the voice chat.
 
-        **Parameters**
-            - **comId**: ID of the Community (str)
-            - **chatId**: ID of the Chat (str)
-            - **leaveType**: Leave type to end voice as.. (int)
+        Parameters
+        ----------
+        comId : int
+            The community ID.
+        chatId : str
+            The chat ID to end the live mode.
+
         """
         data = {
             "o": {
                 "ndcId": comId,
                 "threadId": chatId,
-                "joinRole": leaveType,
-                "id": "2154531",
+                "joinRole": 2,
+                "id": "2154531"
             },
             "t": 112,
         }
-        timer.sleep(2.2)
         self.wss.send(data)
 
-    def joinVideoChatAsSpectator(self, comId: str, chatId: str):
-        """
-        Join Video Chat As Spectator
+    def joinVideoChatAsSpectator(self, comId: int, chatId: str) -> None:
+        """Join video chat as spectator
 
-        **Parameters**
-            - **comId**: ID of the Community (str)
-            - **chatId**: ID of the Chat (str)
+        Parameters
+        ----------
+        comId : int
+            The community ID.
+        chatId : str
+            The chat ID of live mode.
+
         """
         data = {
             "o": {
-                "ndcId": int(comId),
+                "ndcId": comId,
                 "threadId": chatId,
                 "joinRole": 2,
                 "id": "72446",
             },
             "t": 112,
         }
-        timer.sleep(2.2)
         self.wss.send(data)
 
-    def threadJoin(self, comId: str, chatId: str):
+    def threadJoin(self, comId: int, chatId: str) -> None:
         data = {
             "o": {
-                "ndcId": int(comId),
+                "ndcId": comId,
                 "threadId": chatId,
                 "joinRole": 1,
                 "id": "10335106",
@@ -517,10 +715,10 @@ class WssClient:
         }
         self.wss.send(data)
 
-    def channelJoin(self, comId: str, chatId: str):
+    def channelJoin(self, comId: int, chatId: str):
         data = {
             "o": {
-                "ndcId": int(comId),
+                "ndcId": comId,
                 "threadId": chatId,
                 "channelType": 5,
                 "id": "10335436",
@@ -529,28 +727,31 @@ class WssClient:
         }
         self.wss.send(data)
 
-    def GetUsersActions(self, comId: str = None, path: int = 0, chatId: str = None):
-        """
-        Get users actions:
-        This functions gets certain socket actions happening
-        such as online users and users chatting
+    def GetUsersActions(self, comId: int, path: int = 0, chatId: Optional[str] = None) -> UsersActions:
+        """Get users actions.
+    
+        This functions gets certain socket actions happening such as online users and users chatting
 
         Parameters
-            ----------
-            comId : int
-                the community id -required
+        ----------
+        comId : int
+            The community ID.
+        path : int
+            Takes an intger >= 0 and <= 5 each one sends a certain action not required -set by default to 0 // users-chatting
+                0: chatting users
+                1: online members
+                2: users typing start (chat ID required)
+                3: users typing end (chat ID required)
+                4: users recording start (chat ID required)
+                5: users recording end (chat ID required)
+        chatId : str
+            The chat ID used in certain actions such as users typing.
 
-            path : int
-                takes an intger >= 0 and <= 5 each one sends a certain action
-                not required -set by default to 0 // users-chatting
+        Returns
+        -------
+        UsersActions
+            The action object.
 
-            chatId : str
-                the chatId used in certain actions such as 'users-start-typing-at -Optional
-
-            Returns
-            ----------
-        A Class property if there is a new message it will contain a userProfileList
-        you can explore 'UsersActions' in objects file
         """
         acts = {
             0: "users-chatting",
@@ -560,12 +761,10 @@ class WssClient:
             4: "users-start-recording-at",
             5: "users-start-recording-at",
         }
-
         if chatId:
             topic = f'{acts.get(path, "users-chatting")}:{chatId}'
         else:
             topic = acts.get(path, "users-chatting")
-
         data = {
             "o": {
                 "ndcId": int(comId) if comId else 0,
@@ -574,61 +773,67 @@ class WssClient:
             },
             "t": 300,
         }
-
-        timer.sleep(2.2)
         self.wss.send(data)
+        recv = None
+        while not recv:
+            recv = self.wss.receive()
+        return UsersActions(recv).UsersActions
 
-        for i in range(3):
-            if self.wss.receive():
-                return UsersActions(data=self.wss.receive()).UsersActions
-            else:
-                continue
-
-        return UsersActions(data={}).UsersActions
-
-    def actions(self, comId: str, chatId: str):
+    def actions(self, comId: int, chatId: str) -> Actions:
         return Actions(self.wss, comId, chatId)
 
 
 class Wss(Callbacks, WssClient, Headers):
-    def __init__(self, client, trace: bool = False, is_bot: bool = False):
+    """Represents the amino websocket client.
 
+    Parameters
+    ----------
+    client : Client
+        The global client object.
+    trace : bool
+        Show websocket trace (logs). Default is False.
+    is_bot : bool
+        The client is a community bot. Default is False (command supported).
+
+    """
+
+    def __init__(self, client: Client, trace: bool = False, is_bot: bool = False):
         self.trace = trace
         self.socket = None
         self.headers = None
         self.client = client
         self.isOpened = False
-
-        Headers.__init__(self)
-        Callbacks.__init__(self, is_bot=is_bot)
-        WssClient.__init__(self, self)
-
         self.narvi = "https://service.narvii.com/api/v1/"
         self.socket_url = "wss://ws1.narvii.com"
         self.lastMessage = {}
+        Headers.__init__(self, getattr(client, 'deviceId', None))
+        Callbacks.__init__(self, is_bot=is_bot)
+        WssClient.__init__(self, self)
         websocket.enableTrace(trace)
 
-    def onOpen(self, *args):
+    def onOpen(self, *args: Any) -> None:
         self.isOpened = True
         if self.trace:
             print("[ON-OPEN] Sockets are open")
 
-    def onClose(self, *args):
+    def onClose(self, *args: Any) -> None:
         self.isOpened = False
         if self.trace:
             print("[ON-CLOSE] Sockets are closed")
 
-    def send(self, data):
+    def send(self, data: dict) -> None:
+        if not self.socket:
+            raise RuntimeError('Socket is not connected.')
         self.socket.send(json.dumps(data))
 
-    def receive(self):
+    def receive(self) -> Optional[Dict[str, Any]]:
         if self.trace:
             print("[RECEIVE] returning last message")
         return self.lastMessage
 
-    def on_message(self, ws, data):
+    def on_message(self, ws, data) -> None:
         self.lastMessage = json.loads(data)
-        self.resolve(data)
+        self.resolve(self.lastMessage)
         if self.trace:
             print("[ON-MESSAGE] Received a message . . .")
 
@@ -639,28 +844,29 @@ class Wss(Callbacks, WssClient, Headers):
             "NDCAUTH": self.client.sid,
             "NDC-MSG-SIG": util.generateSig(data=final),
         }
-
         self.socket = websocket.WebSocketApp(
             f"{self.socket_url}/?signbody={final.replace('|', '%7C')}",
             on_message=self.on_message,
             on_close=self.onClose,
             on_open=self.onOpen,
-            header=self.headers,
+            on_error=self.onError,
+            header=self.headers
         )
-
         if self.trace:
             print("[LAUNCH] Sockets starting . . . ")
-        threading.Thread(
-            target=self.socket.run_forever, kwargs={"ping_interval": 60}
-        ).start()
+        threading.Thread(target=self.socket.run_forever, kwargs={"ping_interval": 60}).start()
+        timer.sleep(5)
 
-    def close(self):
-        self.socket.close()
+    def close(self) -> None:
+        if self.socket:
+            self.socket.close()
         if self.trace:
             print("[CLOSE] closing socket . . .")
         timer.sleep(1.5)
 
-    def socket_status(self):
-        print("\nSockets are OPEN\n") if self.isOpened else print(
-            "\nSockets are CLOSED\n"
-        )
+    def onError(self, *args):
+        if self.trace:
+            print(f"[ERROR] Error! {args}")
+
+    def socket_status(self) -> None:
+        print("\nSockets are OPEN\n" if self.isOpened else "\nSockets are CLOSED\n")
