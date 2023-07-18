@@ -1,11 +1,12 @@
 # From https://github.com/okok7711/AminoAcid/blob/master/aminoacid/exceptions.py
+from typing import NoReturn
 
 
 class AminoBaseException(Exception):
     ...
 
 
-class UnknownExcepion(AminoBaseException):
+class UnknownException(AminoBaseException):
     ...
 
 
@@ -317,7 +318,15 @@ class InvalidName(AminoBaseException):
     ...
 
 
-def CheckExceptions(data: dict):
+def check_exceptions(data: dict) -> NoReturn:
+    """Raise an exception from the amino API.
+
+    Parameters
+    ----------
+    data : dict
+        The data from the amino API.
+
+    """
     raise {
             100: UnsupportedService,
             102: FileTooLarge,
@@ -401,4 +410,4 @@ def CheckExceptions(data: dict):
             6001: AminoIDAlreadyChanged,
             6002: InvalidAminoID,
             9901: InvalidName,
-        }.get(data.get("api:statuscode", 1000), UnknownExcepion)(data)
+        }.get(data.get("api:statuscode", 1000), UnknownException)(data)

@@ -1,23 +1,23 @@
-from json import loads
-from requests import get
+import json
+import requests
+from .k_sync import *
+from .k_async import *
+from .lib.util import *
 
-from .k_sync.acm import Acm
-from .k_sync.client import Client
-from .k_sync.local import SubClient
-# from .k_sync.sockets import *
-from .k_sync.bot import Bot
+__title__ = "k-amino.py"
+__description__ = "Amino Bots with python!"
+__url__ = "https://github.com/kwel999/K_Amino"
+__version__ = "1.5.0"
+__author__ = "KWEL"
+__author_email__ = "itskwel999@gmail.com"
+__license__ = "Apache"
 
-from .k_async.acm import AsyncAcm
-from .k_async.client import AsyncClient
-from .k_async.local import AsyncSubClient
-# from .k_async.sockets import *
-from .k_async.bot import AsyncBot
-
-
-__version__ = "1.4.0"
-
-
-__newest__ = loads(get("https://pypi.python.org/pypi/k-amino.py/json").text)["info"]["version"]
+try:
+    __newest__ = json.loads(requests.get("https://pypi.python.org/pypi/k-amino.py/json").text)["info"]["version"]
+except requests.ConnectionError:
+    __newest__ = __version__
+finally:
+    del json, requests
 
 if __version__ != __newest__:
     print(f"\033[1;31;38mk_amino New Version!: {__newest__} (You are using {__version__})\033[1;36;33m\nDiscord server: \"https://discord.gg/zd8gyFJquT\"\033[1;0m")

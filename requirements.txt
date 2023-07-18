@@ -1,0 +1,6 @@
+ujson
+easy_events
+json_minify
+requests
+websocket-client==1.3.1
+httpx
