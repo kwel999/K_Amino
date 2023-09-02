@@ -1,5 +1,6 @@
 import json
-import requests
+import urllib.request
+import urllib.error
 from .k_sync import *
 from .k_async import *
 from .lib.util import *
@@ -13,13 +14,13 @@ __author_email__ = "itskwel999@gmail.com"
 __license__ = "Apache"
 
 try:
-    __newest__ = json.loads(requests.get("https://pypi.python.org/pypi/k-amino.py/json").text)["info"]["version"]
-except requests.ConnectionError:
+    __newest__ = json.loads(urllib.request.urlopen("https://pypi.python.org/pypi/k-amino.py/json").read())["info"]["version"]
+except urllib.error.URLError:
     __newest__ = __version__
 finally:
-    del json, requests
+    del json, urllib
 
-if __version__ != __newest__:
+if __version__ < __newest__:
     print(f"\033[1;31;38mk_amino New Version!: {__newest__} (You are using {__version__})\033[1;36;33m\nDiscord server: \"https://discord.gg/zd8gyFJquT\"\033[1;0m")
 else:
     print(f"\033[1;31;32mk_amino version : {__version__}\033[1;36;33m\nDiscord server: \"https://discord.gg/zd8gyFJquT\"\033[1;0m")
