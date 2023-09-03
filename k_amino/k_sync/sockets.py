@@ -1,6 +1,6 @@
 from __future__ import annotations
 import threading
-import time as timer
+import time
 try:
     import ujson as json
 except ImportError:
@@ -8,7 +8,7 @@ except ImportError:
 import websocket
 from functools import wraps
 from inspect import signature as fsignature
-from typing import Any, Callable, Dict, List, Optional, TYPE_CHECKING, Union
+from typing import Any, Callable, Dict, List, Optional, TypeVar, TYPE_CHECKING, Union
 from ..lib import *
 from ..lib.objects import *
 from .bot import Bot
@@ -19,6 +19,18 @@ __all__ = (
     'Actions',
     'SetAction'
 )
+
+ET = TypeVar('ET', bound=Callable)
+
+
+def create_event(func: ET) -> ET:
+    @wraps(func)
+    def event(self: Callbacks, *args: Any, **kwargs: Any) -> None:
+        data = func(self, *args, **kwargs)
+        self.call(func.__name__, data)
+    event.__signature__ = fsignature(func) # type: ignore
+    return event  # type: ignore
+
 
 class Callbacks(Bot):
     def __init__(self, is_bot: bool = False, prefix: str = "!") -> None:
@@ -144,15 +156,6 @@ class Callbacks(Bot):
                 self.handlers[eventType] = [handler]
             return handler
         return registerHandler
-
-    @staticmethod
-    def create_event(func):
-        @wraps(func)
-        def event(self: Callbacks, *args: Any, **kwargs: Any) -> None:
-            data = func(self, *args, **kwargs)
-            self.call(func.__name__, data)
-        event.__signature__ = fsignature(func) # type: ignore
-        return event
 
     @staticmethod
     def convert_event(data: Union[Dict[str, Any], Event]) -> Event:
@@ -404,6 +407,8 @@ class Callbacks(Bot):
     @create_event
     def default(self, data: dict) -> Optional[dict]:
         return data
+
+    create_event = staticmethod(create_event)
 
 
 class SetAction:
@@ -838,7 +843,7 @@ class Wss(Callbacks, WssClient, Headers):
             print("[ON-MESSAGE] Received a message . . .")
 
     def launch(self):
-        final = f"{self.client.deviceId}|{int(timer.time() * 1000)}"
+        final = f"{self.client.deviceId}|{int(time.time() * 1000)}"
         self.headers = {
             "NDCDEVICEID": self.client.deviceId,
             "NDCAUTH": self.client.sid,
@@ -850,19 +855,19 @@ class Wss(Callbacks, WssClient, Headers):
             on_close=self.onClose,
             on_open=self.onOpen,
             on_error=self.onError,
-            header=self.headers
+            header=self.headers  # type: ignore
         )
         if self.trace:
             print("[LAUNCH] Sockets starting . . . ")
         threading.Thread(target=self.socket.run_forever, kwargs={"ping_interval": 60}).start()
-        timer.sleep(5)
+        time.sleep(5)
 
     def close(self) -> None:
         if self.socket:
             self.socket.close()
         if self.trace:
             print("[CLOSE] closing socket . . .")
-        timer.sleep(1.5)
+        time.sleep(1.5)
 
     def onError(self, *args):
         if self.trace:

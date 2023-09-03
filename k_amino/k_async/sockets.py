@@ -8,7 +8,7 @@ except ImportError:
     import json
 from functools import wraps
 from inspect import signature as fsignature
-from typing import Any, Callable, Dict, List, Optional, TYPE_CHECKING, Union
+from typing import Any, Callable, Dict, List, Optional, TypeVar, TYPE_CHECKING, Union
 from . import websocket_async
 from ..lib import *
 from ..lib.objects import *
@@ -24,6 +24,17 @@ __all__ = (
     'AsyncActions',
     'AsyncSetAction'
 )
+
+ET = TypeVar('ET', bound=Callable)
+
+
+def create_event(func: ET) -> ET:
+    @wraps(func)
+    async def event(self: AsyncCallbacks, *args: Any, **kwargs: Any) -> None:
+        data = func(self, *args, **kwargs)
+        await self.call(func.__name__, data)
+    event.__signature__ = fsignature(func) # type: ignore
+    return event  # type: ignore
 
 
 class AsyncCallbacks(AsyncBot):
@@ -150,15 +161,6 @@ class AsyncCallbacks(AsyncBot):
                 self.handlers[eventType] = [handler]
             return handler
         return registerHandler
-
-    @staticmethod
-    def create_event(func):
-        @wraps(func)
-        async def event(self: AsyncCallbacks, *args: Any, **kwargs: Any) -> None:
-            data = func(self, *args, **kwargs)
-            await self.call(func.__name__, data)
-        event.__signature__ = fsignature(func) # type: ignore
-        return event
 
     @staticmethod
     def convert_event(data: Union[Dict[str, Any], Event]) -> Event:
@@ -411,6 +413,8 @@ class AsyncCallbacks(AsyncBot):
     @create_event
     async def default(self, data: dict) -> Optional[dict]:
         return data
+
+    create_event = staticmethod(create_event)
 
 
 class AsyncSetAction:
