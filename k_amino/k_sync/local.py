@@ -60,7 +60,7 @@ class SubClient(Acm, Session):
         if acm:
             Acm.__init__(self, comId=self.comId, client=client, proxies=proxies)
         else:
-            Session.__init__(self, client=self, proxies=proxies)
+            Session.__init__(self, client=client, proxies=proxies)
 
     def get_video_rep_info(self, chatId: str) -> RepInfo:
         """Get screening-room video reputation information.

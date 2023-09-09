@@ -60,7 +60,7 @@ class AsyncSubClient(AsyncAcm, AsyncSession):
         if acm:
             AsyncAcm.__init__(self, comId=self.comId, client=client, proxies=proxies)
         else:
-            AsyncSession.__init__(self, client=self, proxies=proxies)
+            AsyncSession.__init__(self, client=client, proxies=proxies)
 
     async def get_video_rep_info(self, chatId: str) -> RepInfo:
         """Get screening-room video reputation information.
