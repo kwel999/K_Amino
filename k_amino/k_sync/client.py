@@ -9,7 +9,7 @@ from ..lib.sessions import Session
 from ..lib.util import deprecated, get_file_type
 from .sockets import Wss
 
-__all__ = ('Client',)
+__all__ = ("Client",)
 
 
 class Client(Wss, Session):
@@ -48,10 +48,18 @@ class Client(Wss, Session):
         The HTTP headers of the web client.
 
     """
-    def __init__(self, deviceId: Optional[str] = None, proxies: Optional[Dict[str, str]] = None, trace: bool = False, bot: bool = False) -> None:
+
+    def __init__(
+        self,
+        deviceId: Optional[str] = None,
+        proxies: Optional[Dict[str, str]] = None,
+        trace: bool = False,
+        bot: bool = False,
+        debug: bool = True,
+    ) -> None:
         self.trace = trace
         Wss.__init__(self, self, trace=self.trace, is_bot=bot)
-        Session.__init__(self, proxies=proxies, deviceId=deviceId)
+        Session.__init__(self, proxies=proxies, deviceId=deviceId, debug=debug)
 
     def change_lang(self, lang: str = "en") -> None:
         """Change the content language.
@@ -64,7 +72,7 @@ class Client(Wss, Session):
         """
         self.updateHeaders(lang=lang)
 
-    def sid_login(self, sid: str, socket = False) -> Account:
+    def sid_login(self, sid: str, socket=False) -> Account:
         """Login via session ID.
 
         Parameters
@@ -121,8 +129,8 @@ class Client(Wss, Session):
         """
         if not (email and (password or secret)):
             raise ValueError("Please provide VALID login info")
-        
-        if (SID):
+
+        if SID:
             self.settings(sid=SID)
             info = self.get_account_info()
             self.settings(uid=info.userId)
@@ -183,10 +191,12 @@ class Client(Wss, Session):
             "timestamp": int(timestamp() * 1000),
             "clientType": 100,
         }
-        req = self.postRequest("/g/s/device/", data, newHeaders={"NDCDEVICEID": deviceId})
+        req = self.postRequest(
+            "/g/s/device/", data, newHeaders={"NDCDEVICEID": deviceId}
+        )
         return Json(req)
 
-    def upload_media(self, file: BinaryIO, fileType: Literal['audio', 'image']) -> str:
+    def upload_media(self, file: BinaryIO, fileType: Literal["audio", "image"]) -> str:
         """Upload a media to the amino server.
 
         Parameters
@@ -202,12 +212,12 @@ class Client(Wss, Session):
             The url of the uploaded image.
 
         """
-        if fileType not in ('image', 'audio'):
+        if fileType not in ("image", "audio"):
             raise ValueError("fileType must be 'audio' or 'image' not %r." % fileType)
         if fileType == "audio":
-            ftype = "audio/" + get_file_type(file.name, 'acc')
+            ftype = "audio/" + get_file_type(file.name, "acc")
         else:
-            ftype = "image/" + get_file_type(file.name, 'jpg')
+            ftype = "image/" + get_file_type(file.name, "jpg")
         newHeaders = {"content-type": ftype, "content-length": str(len(file.read()))}
         req = self.postRequest("/g/s/media/upload", data=file, newHeaders=newHeaders)
         return req["mediaValue"]
@@ -227,7 +237,7 @@ class Client(Wss, Session):
             The url of the uploaded image.
 
         """
-        return self.upload_media(image, 'image')
+        return self.upload_media(image, "image")
 
     def send_verify_code(self, email: str) -> Json:
         """Request verification code via email.
@@ -268,7 +278,9 @@ class Client(Wss, Session):
             The JSON response.
 
         """
-        req = self.postRequest(f"/g/s/chat/thread/{chatId}/transfer-organizer/{requestId}/accept")
+        req = self.postRequest(
+            f"/g/s/chat/thread/{chatId}/transfer-organizer/{requestId}/accept"
+        )
         return Json(req)
 
     def verify_account(self, email: str, code: str) -> Json:
@@ -321,7 +333,9 @@ class Client(Wss, Session):
         req = self.postRequest("/g/s/account/delete-request/cancel", data)
         return Json(req)
 
-    def delete_account(self, password: Optional[str] = None, secret: Optional[str] = None) -> Json:
+    def delete_account(
+        self, password: Optional[str] = None, secret: Optional[str] = None
+    ) -> Json:
         """Delete a user account.
 
         Parameters
@@ -429,7 +443,9 @@ class Client(Wss, Session):
             The joined community list object.
 
         """
-        req = self.getRequest(f"/g/s/chat/thread?type=joined-me&start={start}&size={size}")
+        req = self.getRequest(
+            f"/g/s/chat/thread?type=joined-me&start={start}&size={size}"
+        )
         return ThreadList(req["threadList"]).ThreadList
 
     def get_chat_info(self, chatId: str) -> Thread:
@@ -526,7 +542,7 @@ class Client(Wss, Session):
             "timestamp": int(timestamp() * 1000),
         }
         req = self.postRequest(f"/g/s/chat/thread", data)
-        return Thread(req['thread']).Thread
+        return Thread(req["thread"]).Thread
 
     def get_from_link(self, link: str) -> FromCode:
         """Get data from a link.
@@ -590,13 +606,15 @@ class Client(Wss, Session):
         if nickname:
             data["nickname"] = nickname
         if icon:
-            data["icon"] = self.upload_media(icon, 'image')
+            data["icon"] = self.upload_media(icon, "image")
         if defaultBubbleId:
             extensions["defaultBubbleId"] = defaultBubbleId
         if backgroundColor:
             extensions["style"] = {"backgroundColor": backgroundColor}
         if backgroundImage:
-            extensions["style"] = {"backgroundMediaList": [[100, backgroundImage, None, None, None]]}
+            extensions["style"] = {
+                "backgroundMediaList": [[100, backgroundImage, None, None, None]]
+            }
         if extensions:
             data["extensions"] = extensions
         req = self.postRequest(f"/g/s/user-profile/{self.uid}", data)
@@ -683,7 +701,7 @@ class Client(Wss, Session):
         flagType: int = 0,
         blogId: Optional[str] = None,
         wikiId: Optional[str] = None,
-        userId: Optional[str] = None
+        userId: Optional[str] = None,
     ) -> Json:
         """Flag a post or user.
 
@@ -722,7 +740,7 @@ class Client(Wss, Session):
         data = {
             "message": reason,
             "flagType": flagType,
-            "timestamp": int(timestamp() * 1000)
+            "timestamp": int(timestamp() * 1000),
         }
         if userId:
             data["objectId"] = userId
@@ -778,7 +796,9 @@ class Client(Wss, Session):
         req = self.postRequest(link, data)
         return Json(req)
 
-    def get_member_following(self, userId: str, start: int = 0, size: int = 25) -> UserProfileList:
+    def get_member_following(
+        self, userId: str, start: int = 0, size: int = 25
+    ) -> UserProfileList:
         """Get user's followings.
 
         Parameters
@@ -796,10 +816,14 @@ class Client(Wss, Session):
             The follwing member list object.
 
         """
-        req = self.getRequest(f"/g/s/user-profile/{userId}/joined?start={start}&size={size}")
+        req = self.getRequest(
+            f"/g/s/user-profile/{userId}/joined?start={start}&size={size}"
+        )
         return UserProfileList(req["userProfileList"]).UserProfileList
 
-    def get_member_followers(self, userId: str, start: int = 0, size: int = 25) -> UserProfileList:
+    def get_member_followers(
+        self, userId: str, start: int = 0, size: int = 25
+    ) -> UserProfileList:
         """Get user's followers.
 
         Parameters
@@ -817,10 +841,14 @@ class Client(Wss, Session):
             The follower list object.
 
         """
-        req = self.getRequest(f"/g/s/user-profile/{userId}/member?start={start}&size={size}")
+        req = self.getRequest(
+            f"/g/s/user-profile/{userId}/member?start={start}&size={size}"
+        )
         return UserProfileList(req["userProfileList"]).UserProfileList
 
-    def get_member_visitors(self, userId: str, start: int = 0, size: int = 25) -> VisitorsList:
+    def get_member_visitors(
+        self, userId: str, start: int = 0, size: int = 25
+    ) -> VisitorsList:
         """Get user's visitor list.
 
         Parameters
@@ -837,7 +865,9 @@ class Client(Wss, Session):
         VisitorsList
             The visitor list object.
         """
-        req = self.getRequest(f"/g/s/user-profile/{userId}/visitors?start={start}&size={size}")
+        req = self.getRequest(
+            f"/g/s/user-profile/{userId}/visitors?start={start}&size={size}"
+        )
         return VisitorsList(req["visitors"]).VisitorsList
 
     def get_blocker_users(self, start: int = 0, size: int = 25) -> List[str]:
@@ -876,7 +906,9 @@ class Client(Wss, Session):
         req = self.getRequest(f"/g/s/block/full-list?start={start}&size={size}")
         return req["blockedUidList"]
 
-    def get_wall_comments(self, userId: str, sorting: str = "newest", start: int = 0, size: int = 25) -> CommentList:
+    def get_wall_comments(
+        self, userId: str, sorting: str = "newest", start: int = 0, size: int = 25
+    ) -> CommentList:
         """Get a list of comment in a user's wall.
 
         Parameters
@@ -903,8 +935,12 @@ class Client(Wss, Session):
         """
         sorting = sorting.lower().replace("top", "vote")
         if sorting not in ["newest", "oldest", "vote"]:
-            raise ValueError("Sorting must be one of 'newest', 'oldest', or 'vote', not %r" % sorting)
-        req = self.getRequest(f"/g/s/user-profile/{userId}/g-comment?sort={sorting}&start={start}&size={size}")
+            raise ValueError(
+                "Sorting must be one of 'newest', 'oldest', or 'vote', not %r" % sorting
+            )
+        req = self.getRequest(
+            f"/g/s/user-profile/{userId}/g-comment?sort={sorting}&start={start}&size={size}"
+        )
         return CommentList(req["commentList"]).CommentList
 
     def get_blog_comments(
@@ -913,7 +949,7 @@ class Client(Wss, Session):
         blogId: Optional[str] = None,
         sorting: str = "newest",
         start: int = 0,
-        size: int = 25
+        size: int = 25,
     ) -> CommentList:
         """Get post comments.
 
@@ -945,9 +981,13 @@ class Client(Wss, Session):
         if sorting not in ["newest", "oldest", "vote"]:
             raise ValueError("Please insert a valid sorting")
         if blogId:
-            link = f"/g/s/blog/{blogId}/comment?sort={sorting}&start={start}&size={size}"
+            link = (
+                f"/g/s/blog/{blogId}/comment?sort={sorting}&start={start}&size={size}"
+            )
         elif wikiId:
-            link = f"/g/s/item/{wikiId}/comment?sort={sorting}&start={start}&size={size}"
+            link = (
+                f"/g/s/item/{wikiId}/comment?sort={sorting}&start={start}&size={size}"
+            )
         else:
             raise ValueError("Please choose a wiki or a blog")
         req = self.getRequest(link)
@@ -959,7 +999,7 @@ class Client(Wss, Session):
         message: Optional[str] = None,
         messageType: int = 0,
         file: Optional[BinaryIO] = None,
-        fileType: Optional[Literal['audio', 'image', 'gif']] = None,
+        fileType: Optional[Literal["audio", "image", "gif"]] = None,
         replyTo: Optional[str] = None,
         mentionUserIds: Union[List[str], str, None] = None,
         stickerId: Optional[str] = None,
@@ -1033,7 +1073,7 @@ class Client(Wss, Session):
                 mentions.append({"uid": mentionUserIds})
         if embedImage:
             if not isinstance(embedImage, str):
-                embedMedia = [[100, self.upload_media(embedImage, 'image'), None]]
+                embedMedia = [[100, self.upload_media(embedImage, "image"), None]]
             else:
                 embedMedia = [[100, embedImage, None]]
         data = {
@@ -1059,12 +1099,15 @@ class Client(Wss, Session):
             data["type"] = 3
         if snippetLink and snippetImage:
             data["attachedObject"] = None
-            data["extensions"]["linkSnippetList"] = [{
-                "link": snippetLink,
-                "mediaType": 100,
-                "mediaUploadValue": b64encode(snippetImage.read()).decode(),
-                "mediaUploadValueContentType": 'image/%s' % get_file_type(snippetImage.name, 'png')
-            }]
+            data["extensions"]["linkSnippetList"] = [
+                {
+                    "link": snippetLink,
+                    "mediaType": 100,
+                    "mediaUploadValue": b64encode(snippetImage.read()).decode(),
+                    "mediaUploadValueContentType": "image/%s"
+                    % get_file_type(snippetImage.name, "png"),
+                }
+            ]
         if ytVideo:
             data["content"] = None
             data["mediaType"] = 103
@@ -1076,7 +1119,9 @@ class Client(Wss, Session):
                 data["mediaType"] = 110
             elif fileType == "image":
                 data["mediaType"] = 100
-                data["mediaUploadValueContentType"] = 'image/%s' % get_file_type(file.name, 'jpg')
+                data["mediaUploadValueContentType"] = "image/%s" % get_file_type(
+                    file.name, "jpg"
+                )
                 data["mediaUhqEnabled"] = False
             elif fileType == "gif":
                 data["mediaType"] = 100
@@ -1104,10 +1149,12 @@ class Client(Wss, Session):
             The community object.
 
         """
-        link = (f"/g/s-x{comId}/community/info"
-                f"?withInfluencerList=1"
-                f"&withTopicList=true"
-                f"&influencerListOrderStrategy=fansCount")
+        link = (
+            f"/g/s-x{comId}/community/info"
+            f"?withInfluencerList=1"
+            f"&withTopicList=true"
+            f"&influencerListOrderStrategy=fansCount"
+        )
         req = self.getRequest(link)
         return Community(req["community"]).Community
 
@@ -1147,7 +1194,9 @@ class Client(Wss, Session):
         req = self.deleteRequest(f"/g/s/chat/thread/{chatId}/message/{messageId}")
         return Json(req)
 
-    def get_chat_messages(self, chatId: str, start: int = 0, size: int = 25) -> MessageList:
+    def get_chat_messages(
+        self, chatId: str, start: int = 0, size: int = 25
+    ) -> MessageList:
         """Get messages from a chat.
 
         Parameters
@@ -1165,7 +1214,9 @@ class Client(Wss, Session):
             The message list object.
 
         """
-        req = self.getRequest(f"/g/s/chat/thread/{chatId}/message?v=2&pagingType=t&start={start}&size={size}")
+        req = self.getRequest(
+            f"/g/s/chat/thread/{chatId}/message?v=2&pagingType=t&start={start}&size={size}"
+        )
         return MessageList(req["messageList"]).MessageList  # is valid?
 
     def get_message_info(self, messageId: str, chatId: str) -> Message:
@@ -1234,7 +1285,9 @@ class Client(Wss, Session):
         req = self.postRequest(link, data)
         return Json(req)
 
-    def reset_password(self, email: str, password: str, code: str, deviceId: Optional[str] = None) -> Json:
+    def reset_password(
+        self, email: str, password: str, code: str, deviceId: Optional[str] = None
+    ) -> Json:
         """Reset the account password.
 
         Parameters
@@ -1403,10 +1456,14 @@ class Client(Wss, Session):
             The JSON response.
 
         """
-        req = self.deleteRequest(f"/g/s/chat/thread/{chatId}/member/{userId}?allowRejoin={rejoin.real}")
+        req = self.deleteRequest(
+            f"/g/s/chat/thread/{chatId}/member/{userId}?allowRejoin={rejoin.real}"
+        )
         return Json(req)
 
-    def get_invise_users(self, master_type = "newest", start: int = 0, size: int = 25) -> UserProfileList:
+    def get_invise_users(
+        self, master_type="newest", start: int = 0, size: int = 25
+    ) -> UserProfileList:
         """Get a list of global user profile.
 
         Parameters
@@ -1424,7 +1481,9 @@ class Client(Wss, Session):
             The JSON response.
 
         """
-        req = self.getRequest(f"/g/s/user-profile?type={master_type}&start={start}&size={size}")
+        req = self.getRequest(
+            f"/g/s/user-profile?type={master_type}&start={start}&size={size}"
+        )
         return UserProfileList(req["userProfileList"]).UserProfileList
 
     def invite_to_chat(self, chatId: str, userId: Union[str, List[str]]) -> Json:
@@ -1445,7 +1504,7 @@ class Client(Wss, Session):
         """
         data = {
             "uids": userId if isinstance(userId, list) else [userId],
-            "timestamp": int(timestamp() * 1000)
+            "timestamp": int(timestamp() * 1000),
         }
         req = self.postRequest(f"/g/s/chat/thread/{chatId}/member/invite", data)
         return Json(req)
@@ -1503,7 +1562,9 @@ class Client(Wss, Session):
         req = self.deleteRequest(f"/g/s/block/{userId}")
         return Json(req)
 
-    def get_public_chats(self, filterType: str = "recommended", start: int = 0, size: int = 50) -> ThreadList:
+    def get_public_chats(
+        self, filterType: str = "recommended", start: int = 0, size: int = 50
+    ) -> ThreadList:
         """Get public global chats.
 
         Parameters
@@ -1521,7 +1582,9 @@ class Client(Wss, Session):
             The public chat list object.
 
         """
-        req = self.getRequest(f"/g/s/chat/thread?type=public-all&filterType={filterType}&start={start}&size={size}")
+        req = self.getRequest(
+            f"/g/s/chat/thread?type=public-all&filterType={filterType}&start={start}&size={size}"
+        )
         return ThreadList(req["threadList"]).ThreadList
 
     def get_content_modules(self, version: int = 2) -> Json:
@@ -1553,11 +1616,17 @@ class Client(Wss, Session):
         req = self.getRequest(link)
         return ItemList(req["itemList"]).ItemList
 
-    def get_announcements(self, lang: str = "en", start: int = 0, size: int = 20) -> BlogList:
-        req = self.getRequest(f"/g/s/announcement?language={lang}&start={start}&size={size}")
+    def get_announcements(
+        self, lang: str = "en", start: int = 0, size: int = 20
+    ) -> BlogList:
+        req = self.getRequest(
+            f"/g/s/announcement?language={lang}&start={start}&size={size}"
+        )
         return BlogList(req["blogList"]).BlogList
 
-    def get_public_ndc(self, content_language: str = "en", size: int = 25) -> CommunityList:
+    def get_public_ndc(
+        self, content_language: str = "en", size: int = 25
+    ) -> CommunityList:
         """Get public communities.
 
         Parameters
@@ -1571,10 +1640,14 @@ class Client(Wss, Session):
             The public community list object.
 
         """
-        req = self.getRequest(f"/g/s/topic/0/feed/community?language={content_language}&type=web-explore&categoryKey=recommendation&size={size}&pagingType=t")
+        req = self.getRequest(
+            f"/g/s/topic/0/feed/community?language={content_language}&type=web-explore&categoryKey=recommendation&size={size}&pagingType=t"
+        )
         return CommunityList(req["communityList"]).CommunityList
 
-    def search_community(self, q: str, lang: str = "en", start: int = 0, size: int = 25) -> CommunityList:
+    def search_community(
+        self, q: str, lang: str = "en", start: int = 0, size: int = 25
+    ) -> CommunityList:
         """Search communities.
 
         Parameters
@@ -1594,7 +1667,9 @@ class Client(Wss, Session):
             The community search result object.
 
         """
-        req = self.getRequest(f"/g/s/community/search?q={q}&language={lang}&completeKeyword=1&start={start}&size={size}")
+        req = self.getRequest(
+            f"/g/s/community/search?q={q}&language={lang}&completeKeyword=1&start={start}&size={size}"
+        )
         return CommunityList(req["communityList"]).CommunityList
 
     def invite_to_voice_chat(self, chatId: str, userId: str) -> Json:
@@ -1614,7 +1689,9 @@ class Client(Wss, Session):
 
         """
         data = {"uid": userId, "timestamp": int(timestamp() * 1000)}
-        req = self.postRequest(f"/g/s/chat/thread/{chatId}/vvchat-presenter/invite", data)
+        req = self.postRequest(
+            f"/g/s/chat/thread/{chatId}/vvchat-presenter/invite", data
+        )
         return Json(req)
 
     def get_wallet_history(self, start: int = 0, size: int = 25) -> WalletHistory:
@@ -1648,7 +1725,9 @@ class Client(Wss, Session):
         req = self.getRequest("/g/s/wallet")
         return WalletInfo(req["wallet"]).WalletInfo
 
-    def get_all_users(self, usersType: str = "recent", start: int = 0, size: int = 25) -> UserProfileList:
+    def get_all_users(
+        self, usersType: str = "recent", start: int = 0, size: int = 25
+    ) -> UserProfileList:
         """Get amino user list.
 
         Parameters
@@ -1666,10 +1745,14 @@ class Client(Wss, Session):
             The amino user list object.
 
         """
-        req = self.getRequest(f"/g/s/user-profile?type={usersType}&start={start}&size={size}")
+        req = self.getRequest(
+            f"/g/s/user-profile?type={usersType}&start={start}&size={size}"
+        )
         return UserProfileList(req["userProfileList"]).UserProfileList
 
-    def get_chat_members(self, chatId: str, start: int = 0, size: int = 25) -> UserProfileList:
+    def get_chat_members(
+        self, chatId: str, start: int = 0, size: int = 25
+    ) -> UserProfileList:
         """Get chat member list.
 
         Parameters
@@ -1687,10 +1770,14 @@ class Client(Wss, Session):
             The member list object.
 
         """
-        req = self.getRequest(f"/g/s/chat/thread/{chatId}/member?start={start}&size={size}&type=default&cv=1.2")
+        req = self.getRequest(
+            f"/g/s/chat/thread/{chatId}/member?start={start}&size={size}&type=default&cv=1.2"
+        )
         return UserProfileList(req["memberList"]).UserProfileList
 
-    def get_from_id(self, objectId: str, objectType: int, comId: Optional[str] = None) -> FromCode:
+    def get_from_id(
+        self, objectId: str, objectType: int, comId: Optional[str] = None
+    ) -> FromCode:
         """Get info from object ID.
 
         Parameters
@@ -1736,7 +1823,7 @@ class Client(Wss, Session):
         canInvite: Optional[bool] = None,
         canTip: Optional[bool] = None,
         pin: Optional[bool] = None,
-        coHosts: Union[str, List[str], None] = None
+        coHosts: Union[str, List[str], None] = None,
     ) -> List[Json]:
         """Edit a chat setting.
 
@@ -1765,8 +1852,13 @@ class Client(Wss, Session):
         """
         res = []
         if isinstance(doNotDisturb, bool):
-            data = {"alertOption": doNotDisturb.real + 1, "timestamp": int(timestamp() * 1000)}
-            req = self.postRequest(f"/g/s/chat/thread/{chatId}/member/{self.uid}/alert", data)
+            data = {
+                "alertOption": doNotDisturb.real + 1,
+                "timestamp": int(timestamp() * 1000),
+            }
+            req = self.postRequest(
+                f"/g/s/chat/thread/{chatId}/member/{self.uid}/alert", data
+            )
             res.append(Json(req))
         if isinstance(viewOnly, bool):
             view = "enable" if viewOnly else "disable"
@@ -1774,11 +1866,15 @@ class Client(Wss, Session):
             res.append(Json(req))
         if isinstance(canInvite, bool):
             can = "enable" if canInvite else "disable"
-            req = self.postRequest(f"/g/s/chat/thread/{chatId}/members-can-invite/{can}")
+            req = self.postRequest(
+                f"/g/s/chat/thread/{chatId}/members-can-invite/{can}"
+            )
             res.append(Json(req))
         if isinstance(canTip, bool):
             can = "enable" if canTip else "disable"
-            req = self.postRequest(f"/g/s/chat/thread/{chatId}/tipping-perm-status/{canTip}")
+            req = self.postRequest(
+                f"/g/s/chat/thread/{chatId}/tipping-perm-status/{canTip}"
+            )
             res.append(Json(req))
         if isinstance(pin, bool):
             action = "pin" if pin else "unpin"
@@ -1787,13 +1883,15 @@ class Client(Wss, Session):
         if coHosts:
             data = {
                 "uidList": coHosts if isinstance(coHosts, list) else [coHosts],
-                "timestamp": int(timestamp() * 1000)
+                "timestamp": int(timestamp() * 1000),
             }
             req = self.postRequest(f"/g/s/chat/thread/{chatId}/co-host", data)
             res.append(Json(req))
         return res
 
-    def like_comment(self, commentId: str, blogId: Optional[str] = None, userId: Optional[str] = None) -> Json:
+    def like_comment(
+        self, commentId: str, blogId: Optional[str] = None, userId: Optional[str] = None
+    ) -> Json:
         """Like a comment (blog or user profile).
 
         Parameters
@@ -1818,7 +1916,9 @@ class Client(Wss, Session):
         """
         data = {"value": 4, "timestamp": int(timestamp() * 1000)}
         if userId:
-            link = f"/g/s/user-profile/{userId}/comment/{commentId}/g-vote?cv=1.2&value=1"
+            link = (
+                f"/g/s/user-profile/{userId}/comment/{commentId}/g-vote?cv=1.2&value=1"
+            )
         elif blogId:
             link = f"/g/s/blog/{blogId}/comment/{commentId}/g-vote?cv=1.2&value=1"
         else:
@@ -1826,7 +1926,9 @@ class Client(Wss, Session):
         req = self.postRequest(link, data)
         return Json(req)
 
-    def unlike_comment(self, commentId: str, blogId: Optional[str] = None, userId: Optional[str] = None) -> Json:
+    def unlike_comment(
+        self, commentId: str, blogId: Optional[str] = None, userId: Optional[str] = None
+    ) -> Json:
         """Unlike a comment (blog or user profile).
 
         Parameters
@@ -1858,7 +1960,14 @@ class Client(Wss, Session):
         req = self.deleteRequest(link)
         return Json(req)
 
-    def register(self, nickname: str, email: str, password: str, code: str, deviceId: Optional[str] = None) -> Json:
+    def register(
+        self,
+        nickname: str,
+        email: str,
+        password: str,
+        code: str,
+        deviceId: Optional[str] = None,
+    ) -> Json:
         """Register a new account.
 
         Parameters
@@ -1938,7 +2047,9 @@ class Client(Wss, Session):
             The JSON response list.
 
         """
-        data: Dict[str, Union[int, str, list, dict]] = {"timestamp": int(timestamp() * 1000)}
+        data: Dict[str, Union[int, str, list, dict]] = {
+            "timestamp": int(timestamp() * 1000)
+        }
         extensions = {}
         res = []
         if title:
@@ -1954,14 +2065,16 @@ class Client(Wss, Session):
                 "media": [100, background, None],
                 "timestamp": int(timestamp() * 1000),
             }
-            req = self.postRequest(f"/g/s/chat/thread/{chatId}/member/{self.uid}/background", data)
+            req = self.postRequest(
+                f"/g/s/chat/thread/{chatId}/member/{self.uid}/background", data
+            )
             res.append(Json(req))
         if announcement:
             extensions["announcement"] = announcement
         if pinAnnouncement:
             extensions["pinAnnouncement"] = pinAnnouncement
         if extensions:
-            data['extensions'] = extensions
+            data["extensions"] = extensions
         req = self.postRequest(f"/g/s/chat/thread/{chatId}", data)
         res.append(Json(req))
         return res
@@ -1985,7 +2098,9 @@ class Client(Wss, Session):
         req = self.deleteRequest(f"/g/s/chat/thread/{chatId}/co-host/{userId}")
         return Json(req)
 
-    def edit_comment(self, commentId: str, comment: str, userId: str, replyTo: Optional[str] = None) -> Comment:
+    def edit_comment(
+        self, commentId: str, comment: str, userId: str, replyTo: Optional[str] = None
+    ) -> Comment:
         """Edit a user profile comment.
 
         Parameters
@@ -2030,7 +2145,9 @@ class Client(Wss, Session):
         req = self.getRequest(f"/g/s/user-profile/{userId}/comment/{commentId}")
         return Comment(req).Comments
 
-    def get_notifications(self, start: int = 0, size: int = 25, pagingType: str = "t") -> NotificationList:
+    def get_notifications(
+        self, start: int = 0, size: int = 25, pagingType: str = "t"
+    ) -> NotificationList:
         """Get global notifications.
 
         Parameters
@@ -2047,10 +2164,18 @@ class Client(Wss, Session):
         NotificationList
             _description_
         """
-        req = self.getRequest(f"/g/s/notification?pagingType={pagingType}&start={start}&size={size}")
+        req = self.getRequest(
+            f"/g/s/notification?pagingType={pagingType}&start={start}&size={size}"
+        )
         return NotificationList(req).NotificationList
 
-    def get_notices(self, start: int = 0, size: int = 25, noticeType: str = "usersV2", status: int = 1) -> NoticeList:
+    def get_notices(
+        self,
+        start: int = 0,
+        size: int = 25,
+        noticeType: str = "usersV2",
+        status: int = 1,
+    ) -> NoticeList:
         """Get user global notices.
 
         Parameters
@@ -2070,7 +2195,9 @@ class Client(Wss, Session):
             The notice list object.
 
         """
-        req = self.getRequest(f"/g/s/notice?type={noticeType}&status={status}&start={start}&size={size}")
+        req = self.getRequest(
+            f"/g/s/notice?type={noticeType}&status={status}&start={start}&size={size}"
+        )
         return NoticeList(req).NoticeList
 
     def accept_promotion(self, requestId: str) -> Json:
