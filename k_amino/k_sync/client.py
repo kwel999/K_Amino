@@ -92,6 +92,7 @@ class Client(Wss, Session):
         email: Optional[str] = None,
         password: Optional[str] = None,
         secret: Optional[str] = None,
+        SID: Optional[str] = None,
         socket: bool = False,
     ) -> Login:
         """Login via email.
@@ -120,6 +121,14 @@ class Client(Wss, Session):
         """
         if not (email and (password or secret)):
             raise ValueError("Please provide VALID login info")
+        
+        if (SID):
+            self.settings(sid=SID)
+            info = self.get_account_info()
+            self.settings(uid=info.userId)
+            if socket:
+                self.launch()
+            return info
         data = {
             "email": email if email else "",
             "secret": f"0 {password}" if password else secret,
