@@ -1,5 +1,10 @@
 from typing import Dict, Optional
-from .util import generateDevice, generateSig, uuidString
+from .util import (
+    generateDevice,
+    generateSig,
+    generateUserAgent,
+    uuidString
+)
 
 __all__ = ('Headers',)
 
@@ -30,7 +35,7 @@ class Headers:
             "NDCLANG": "en",
             "Accept-Language": "en-US",
             "Content-Type": "application/x-www-form-urlencoded",
-            "User-Agent": "Apple iPhone13 iOS v16.1.2 Main/3.13.1",
+            "User-Agent": generateUserAgent(),
             "Host": "service.aminoapps.com",
             "Connection": "Keep-Alive",
             "Accept-Encoding": "gzip",
@@ -66,6 +71,7 @@ class Headers:
         """
         self.app_headers.update({
             "AUID": uuidString(),
+            "User-Agent": generateUserAgent(),
             "SMDEVICEID": uuidString(),
             "NDCDEVICEID": self.deviceId or generateDevice(),
             "Content-Type": "application/x-www-form-urlencoded"

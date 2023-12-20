@@ -4,6 +4,9 @@ import k_amino
 with open("README.md", "r") as stream:
     README = stream.read()
 
+with open("requirements.txt", "r") as stream:
+    REQUIREMENTS = stream.read()
+
 setup(
     name=k_amino.__title__,
     description=k_amino.__description__,
@@ -40,15 +43,7 @@ setup(
         "narvii",
     ],
     include_package_data=True,
-    install_requires=[
-        "json_minify",
-        "httpx",
-        "requests",
-        "setuptools",
-        "websocket-client==1.3.1",
-        "ujson",
-        "easy-events==2.8.2"
-    ],
+    install_requires=REQUIREMENTS,
     setup_requires=["wheel"],
     packages=find_packages(),
 )

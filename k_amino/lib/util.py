@@ -2,6 +2,7 @@ from base64 import b64encode, urlsafe_b64decode
 from time import time as timestamp
 from typing import Dict, List, Optional
 from functools import wraps
+from random import randint
 from hashlib import sha1
 from uuid import uuid4
 from json import loads
@@ -16,6 +17,7 @@ __all__ = (
     'deprecated',
     'generateDevice',
     'generateSig',
+    'generateUserAgent',
     'get_file_type',
     'sid_created_time',
     'sid_to_client_type',
@@ -55,6 +57,10 @@ def generateDevice(id: Optional[bytes] = None) -> str:
 
 def updateDevice(device: str) -> str:
     return generateDevice(bytes.fromhex(device)[1:21])
+
+
+def generateUserAgent() -> str:
+    return f"Apple iPhone{randint(0,99999)},1 iOS v16.5 Main/3.19.0"
 
 
 def uuidString() -> str:
