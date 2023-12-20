@@ -3,7 +3,7 @@ from typing import Any, BinaryIO, Dict, NoReturn, Optional, Union, overload
 from httpx import Client as HClient
 from json_minify import json_minify
 from ujson import dumps
-from colorama import Fore, Style
+from colorama import Fore
 from .exception import check_exceptions
 from .headers import Headers
 from .util import api, webApi
@@ -30,7 +30,7 @@ class Session(Headers):
         client: Optional[Session] = None,
         proxies: Optional[Dict[str, str]] = None,
         deviceId: Optional[str] = None,
-        debug: Optional[str] = True,
+        debug: bool = False
     ) -> None:
         self.proxies = (proxies or client.proxies) if client else proxies
         self.sid = client.sid if client else None
@@ -45,29 +45,17 @@ class Session(Headers):
         """Set the instance session ID."""
         if self.sid:
             self.updateHeaders(sid=self.sid)
+    
+    def messageDebug(self, statusCode: int, method: str, url: str) -> None:
+        print(f"{Fore.GREEN if statusCode == 200 else Fore.RED}{method.upper()}{Fore.RESET} | {url} - {statusCode}")
 
     @overload
-    def settings(self, *, sid: Optional[str] = None) -> None:
-        ...
-
+    def settings(self, *, sid: Optional[str] = None) -> None: ...
     @overload
-    def settings(self, *, sid: Optional[str] = None, uid: Optional[str]) -> None:
-        ...
-
+    def settings(self, *, sid: Optional[str] = None, uid: Optional[str]) -> None: ...
     @overload
-    def settings(
-        self,
-        *,
-        sid: Optional[str] = None,
-        uid: Optional[str] = None,
-        secret: Optional[str] = None,
-    ) -> None:
-        ...
-        
-    def messageDebug(self, statusCode = int, method = str, url = str):
-        if (int(statusCode) == 200): print(f"{Fore.GREEN}{method.upper()}{Fore.RESET} | {url} - {statusCode}")
-        else: print(f"{Fore.RED}{method.upper()}{Fore.RESET} | {url} - {statusCode}")
-            
+    def settings(self, *, sid: Optional[str] = None, uid: Optional[str] = None, secret: Optional[str] = None) -> None: ...
+
     def settings(self, **kwargs: Any) -> None:
         """Update the instance settings.
 
@@ -132,7 +120,8 @@ class Session(Headers):
             files={"file": data} if isinstance(data, BinaryIO) else None,
             headers=self.web_headers if webRequest else self.app_headers,
         )
-        if (self.debug): self.messageDebug(statusCode=req.status_code, method='post', url=webApi(url) if webRequest else api(url))
+        if self.debug:
+            self.messageDebug(statusCode=req.status_code, method='post', url=webApi(url) if webRequest else api(url))
         return check_exceptions(req.json()) if req.status_code != 200 else req.json()
 
     def getRequest(self, url: str) -> Union[Dict[str, Any], NoReturn]:
@@ -155,7 +144,8 @@ class Session(Headers):
 
         """
         req = self.session.get(url=api(url), headers=self.updateHeaders())
-        if (self.debug): self.messageDebug(statusCode=req.status_code, method='get', url=api(url))
+        if self.debug:
+            self.messageDebug(statusCode=req.status_code, method='get', url=api(url))
         return check_exceptions(req.json()) if req.status_code != 200 else req.json()
 
     def deleteRequest(self, url: str) -> Union[Dict[str, Any], NoReturn]:
@@ -178,5 +168,6 @@ class Session(Headers):
 
         """
         req = self.session.delete(url=api(url), headers=self.updateHeaders())
-        if (self.debug): self.messageDebug(statusCode=req.status_code, method='delete', url=api(url))
+        if self.debug:
+            self.messageDebug(statusCode=req.status_code, method='delete', url=api(url))
         return check_exceptions(req.json()) if req.status_code != 200 else req.json()

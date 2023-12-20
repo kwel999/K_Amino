@@ -48,10 +48,17 @@ class AsyncClient(AsyncWss, AsyncSession):
         The HTTP headers of the web client.
 
     """
-    def __init__(self, deviceId: Optional[str] = None, proxies: Optional[Dict[str, str]] = None, trace: bool = False, bot: bool = False) -> None:
+    def __init__(
+        self,
+        deviceId: Optional[str] = None,
+        proxies: Optional[Dict[str, str]] = None,
+        trace: bool = False,
+        bot: bool = False,
+        debug: bool = False
+    ) -> None:
         self.trace = trace
         AsyncWss.__init__(self, self, trace=self.trace, is_bot=bot)
-        AsyncSession.__init__(self, proxies=proxies, deviceId=deviceId)
+        AsyncSession.__init__(self, proxies=proxies, deviceId=deviceId, debug=debug)
 
     def change_lang(self, lang: str = "en") -> None:
         """Change the content language.

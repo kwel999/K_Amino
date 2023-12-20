@@ -55,7 +55,7 @@ class Client(Wss, Session):
         proxies: Optional[Dict[str, str]] = None,
         trace: bool = False,
         bot: bool = False,
-        debug: bool = True,
+        debug: bool = False,
     ) -> None:
         self.trace = trace
         Wss.__init__(self, self, trace=self.trace, is_bot=bot)

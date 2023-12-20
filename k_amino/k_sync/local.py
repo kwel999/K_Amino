@@ -55,7 +55,7 @@ class SubClient(Acm, Session):
 
     """
 
-    def __init__(self, comId: int, client: Client, proxies: Optional[dict] = None, acm: bool = False, debug: bool = True):
+    def __init__(self, comId: int, client: Client, proxies: Optional[dict] = None, acm: bool = False, debug: bool = False):
         self.comId = comId
         if acm:
             Acm.__init__(self, comId=self.comId, client=client, proxies=proxies)
