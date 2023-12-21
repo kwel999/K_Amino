@@ -849,7 +849,7 @@ class AsyncWss(AsyncCallbacks, WssClient, Headers):
         if self.trace:
             print("[ON-MESSAGE] Received a message . . .")
 
-    async def launch(self, first_time: bool = True):
+    async def launch(self, first_time: bool = True, daemon: bool = False):
         final = f"{self.client.deviceId}|{int(time.time() * 1000)}"
         self.headers = {
             "NDCDEVICEID": self.client.deviceId,
@@ -866,7 +866,7 @@ class AsyncWss(AsyncCallbacks, WssClient, Headers):
         )
         if self.trace:
             print("[LAUNCH] Sockets starting . . . ")
-        threading.Thread(target=self.run_socket_forever, daemon=True).start()
+        threading.Thread(target=self.run_socket_forever, daemon=daemon).start()
         if first_time:
             loop, th = self.start_async()
             loop = self.submit_async(self.reboot_socket(), loop)
@@ -887,7 +887,7 @@ class AsyncWss(AsyncCallbacks, WssClient, Headers):
     def submit_async(self, awaitable, loop):
         return asyncio.run_coroutine_threadsafe(awaitable, loop)
 
-    def stop_async(self, loop):
+    def stop_async(self, loop: asyncio.AbstractEventLoop):
         loop.call_soon_threadsafe(loop.stop)
 
     def run_socket_forever(self, **kwargs):

@@ -842,7 +842,7 @@ class Wss(Callbacks, WssClient, Headers):
         if self.trace:
             print("[ON-MESSAGE] Received a message . . .")
 
-    def launch(self):
+    def launch(self, daemon: bool = False) -> None:
         final = f"{self.client.deviceId}|{int(time.time() * 1000)}"
         self.headers = {
             "NDCDEVICEID": self.client.deviceId,
@@ -859,7 +859,7 @@ class Wss(Callbacks, WssClient, Headers):
         )
         if self.trace:
             print("[LAUNCH] Sockets starting . . . ")
-        threading.Thread(target=self.socket.run_forever, kwargs={"ping_interval": 60}, daemon=True).start()
+        threading.Thread(target=self.socket.run_forever, kwargs={"ping_interval": 60}, daemon=daemon).start()
         time.sleep(5)
 
     def close(self) -> None:
