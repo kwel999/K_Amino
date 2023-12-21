@@ -1,5 +1,5 @@
 ujson
-easy_events
+easy_events<=3.0.0
 json_minify
 websocket-client==1.3.1
 httpx
