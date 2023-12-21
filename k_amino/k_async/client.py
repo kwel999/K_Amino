@@ -2,7 +2,7 @@ import os
 from base64 import b64encode
 from binascii import hexlify
 from time import time as timestamp
-from typing import BinaryIO, Dict, List, Literal, Optional, Union
+from typing import BinaryIO, Dict, List, Literal, Optional, Union, overload
 from uuid import UUID
 from .sockets import AsyncWss
 from ..lib.objects import *
@@ -94,6 +94,148 @@ class AsyncClient(AsyncWss, AsyncSession):
             await self.launch()
         return info
 
+    async def login_facebook(
+        self,
+        email: str,
+        accessToken: str,
+        address: Optional[str] = None,
+        socket: bool = True
+    ) -> Login:
+        """Login via Facebook.
+
+        Parameters
+        ----------
+        email : str
+            The account email.
+        accessToken : str
+            The facebook third-party oauth access token.
+        address : str, optional
+            The geographical address. Defaults to None.
+            Possible values: locality, sub-locality, administrative area, sub-administrative area, address line (without country)
+            If the country is specified, it should be separated by a comma `,` e.g., (locality, country)
+        socket : bool, optional
+            Run the websocket after login. Default is True.
+
+        Returns
+        -------
+        Login
+            The login object.
+
+        """
+        req = await self.postRequest("/g/s/auth/login", {
+            'secret': f'10 {accessToken}',
+            'clientType': 100,
+            'clientCallbackURL': 'ndc://relogin',
+            'email': email,  # optional ?
+            'latitude': 0,
+            'longitude': 0,
+            'address': address,
+            'action': 'normal',
+            #'thirdPart': True,  # tag, not value?
+            'timestamp': int(timestamp() * 1000),
+            'deviceID': self.deviceId,
+        })
+        self.settings(sid=req["sid"], uid=req["auid"], secret=req["secret"])
+        if socket or self.is_bot:
+            await self.launch()
+        return Login(req)
+
+    async def login_google(
+        self,
+        accessToken: str,
+        address: Optional[str] = None,
+        socket: bool = True
+    ) -> Login:
+        """Login via Google.
+
+        Parameters
+        ----------
+        accessToken : str
+            The google third-party oauth access token.
+        address : str, optional
+            The geographical address. Defaults to None.
+            Possible values: locality, sub-locality, administrative area, sub-administrative area, address line (without country)
+            If the country is specified, it should be separated by a comma `,` e.g., (locality, country)
+        socket : bool, optional
+            Run the websocket after login. Default is False.
+
+        Returns
+        -------
+        Login
+            The login object.
+
+        """
+        req = await self.postRequest("/g/s/auth/login", {
+            'secret': f'30 {accessToken}',
+            'clientType': 100,
+            # 'clientCallbackURL': 'ndc://relogin',  # ???
+            'latitude': 0,
+            'longitude': 0,
+            'address': address,
+            'action': 'normal',
+            #'thirdPart': True,  # tag, not value?
+            'timestamp': int(timestamp() * 1000),
+            'deviceID': self.deviceId,
+        })
+        self.settings(sid=req["sid"], uid=req["auid"], secret=req["secret"])
+        if socket or self.is_bot:
+            await self.launch()
+        return Login(req)
+
+    async def auto_signup_google(
+        self,
+        email: str,
+        password: str,
+        nickname: str,
+        accessToken: str,
+        address: Optional[str] = None,
+        socket: bool = False
+    ) -> Login:
+        """Login via Google.
+
+        Parameters
+        ----------
+        email : str
+            The account email address to register. If you are already registered, raise an EmailAlreadyTaken exception.
+        password : str
+            The account password.
+        nickname : str
+            The nickname of the account.
+        accessToken : str
+            The google third-party oauth access token.
+        address : str, optional
+            The geographical address. Default is None.
+            Possible values: locality, sub-locality, administrative area, sub-administrative area, address line (without country)
+            If the country is specified, it should be separated by a comma `,` e.g., (locality, country)
+        socket : bool, optional
+            Run the websocket after login. Default is False.
+
+        Returns
+        -------
+        Login
+            The login object.
+
+        """
+        await self.register_check(email=email)
+        await self.signup_add_profile(email, password, nickname, accessToken=accessToken, thirdPart='google', address=address)
+        req = await self.postRequest("/g/s/auth/login", {
+            #"validationContext": None,
+            "secret": f"30 {accessToken}",
+            "clientType": 100,
+            # 'clientCallbackURL': 'ndc://relogin',  # ???
+            "action": "auto",
+            #'email': email,
+            "timestamp": int(timestamp() * 1000),
+            "deviceID": self.deviceId,
+            "latitude": 0,
+            "longitude": 0,
+            "address": address,
+        })
+        self.settings(sid=req["sid"], uid=req["auid"], secret=req["secret"])
+        if socket or self.is_bot:
+            await self.launch()
+        return Login(req)
+
     async def login(
         self,
         email: Optional[str] = None,
@@ -160,6 +302,54 @@ class AsyncClient(AsyncWss, AsyncSession):
         self.settings(sid=None, uid=None, secret=None)
         if self.isOpened:
             await self.close()
+        return Json(req)
+
+    async def update_email(
+        self,
+        email: str,
+        new_email: str,
+        code: str,
+        password: Optional[str] = None,
+        secret: Optional[str] = None
+    ) -> Json:
+        """Update the account email.
+
+        Parameters
+        ----------
+        email : str
+            The current account email.
+        new_email : str
+            The new account email to update.
+        code : str
+            The security verification code.
+        password : str, optional
+            The account password. Defaults to None.
+        secret : str, optional
+            The account secret password. Defualts to None.
+
+        Returns
+        -------
+        Json
+            The JSON response.
+
+        """
+        req = self.postRequest('auth/update-email', data={
+            "newValidationContext": {
+                "secret": f'0 {password}' if password else secret,
+                "identity": new_email,
+                "data": {"code": code},
+                "level": 1,
+                "type": 1,
+                "deviceID": self.deviceId
+            },
+            "oldValidationContext": {
+                "identity": email,
+                "level": 1,
+                "data": {"code": code},
+                "type": 1,
+                "deviceID": self.deviceId
+            }
+        })
         return Json(req)
 
     async def check_device(self, deviceId: str) -> Json:
@@ -1855,6 +2045,122 @@ class AsyncClient(AsyncWss, AsyncSession):
             raise ValueError("Please put blog or user Id")
         req = await self.deleteRequest(link)
         return Json(req)
+
+    @overload
+    async def register_check(self, *, email: str) -> Json: ...
+    @overload
+    async def register_check(self, *, phone: str) -> Json: ...
+    async def register_check(self, *, email: Optional[str] = None, phone: Optional[str] = None) -> Json:
+        """Check if you are registered (email, phone or device ID)
+
+        Parameters
+        ----------
+        email : str, optional
+            raise an EmailAlreadyTaken exception if the email already has an account.
+        phone : str, optional
+            raise an EmailAlreadyTaken exception if the phoneNumber already has an account.
+
+        Returns
+        -------
+        Json
+            The JSON response.
+
+        Raises
+        ------
+        EmailAlreadyTaken
+            If the phone or email already has an account.
+
+        """
+        data = {"deviceID": self.deviceId}
+        if email and phone:
+            raise ValueError('You should not provide an email and phone number at the same time')
+        for key, value in dict(email=email, phoneNumber=phone).items():
+            if value:
+                data[key] = value
+        return Json(await self.postRequest("/g/s/auth/register-check", data=data))
+
+    @overload
+    async def signup_add_profile(
+        self,
+        email: str,
+        password: str,
+        nickname: str,
+        code: str
+    ) -> Json: ...
+    @overload
+    async def signup_add_profile(
+        self,
+        email: str,
+        password: str,
+        nickname: str,
+        *,
+        accessToken: str,
+        thirdPart: Literal["facebook", "google"],
+        address: Optional[str] = None
+    ) -> Json: ...
+    async def signup_add_profile(
+        self,
+        email: str,
+        password: str,
+        nickname: str,
+        code: Optional[str] = None,
+        *,
+        accessToken: Optional[str] = None,
+        thirdPart: Optional[Literal["facebook", "google"]] = None,
+        address: Optional[str] = None
+    ) -> Json:
+        """Register a new account with adding basic profile.
+
+        Parameters
+        ----------
+        email : str
+            The account email address.
+        password : str
+            The account password.
+        nickname : str
+            The nickname of the account.
+        code : str, optional
+            The verification code. Default is None.
+        accessToken : str, optional
+            The facebook third-party oauth access token. Default is None.
+        thirdPart: Literal["facebook", "google"], optional
+            The accessToken third-part name. Default is None.
+        address : str, optional
+            The geographical address. Defaults to None.
+            Possible values: locality, sub-locality, administrative area, sub-administrative area, address line (without country)
+            If the country is specified, it should be separated by a comma `,` e.g., (locality, country)
+
+        Returns
+        -------
+        Json
+            The JSON response.
+
+        """
+        data = {
+            "validationContext": {
+                "data": {"code": code},
+                "type": 1,
+                "identity": email
+            },
+            "clientCallbackURL": "ndc://relogin",
+            "clientType": 100,
+            "deviceID": self.deviceId,
+            "email": email,
+            "nickname": nickname,
+            "secret": f"0 {password}",
+            "latitude": 0,
+            "longitude": 0,
+            "address": address
+        }
+        if thirdPart:
+            stype = 30 if thirdPart == 'google' else 10
+            data.update({
+                "secret": f"{stype} {accessToken}",
+                "secret2": f"0 {password}",
+                "validationContext": None
+            })
+        url = "/g/s/auth/" + ("login" if thirdPart else "register")
+        return Json(await self.postRequest(url, data=data))
 
     async def register(self, nickname: str, email: str, password: str, code: str, deviceId: Optional[str] = None) -> Json:
         """Register a new account.

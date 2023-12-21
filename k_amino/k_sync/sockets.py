@@ -859,7 +859,7 @@ class Wss(Callbacks, WssClient, Headers):
         )
         if self.trace:
             print("[LAUNCH] Sockets starting . . . ")
-        threading.Thread(target=self.socket.run_forever, kwargs={"ping_interval": 60}).start()
+        threading.Thread(target=self.socket.run_forever, kwargs={"ping_interval": 60}, daemon=True).start()
         time.sleep(5)
 
     def close(self) -> None:

@@ -866,7 +866,7 @@ class AsyncWss(AsyncCallbacks, WssClient, Headers):
         )
         if self.trace:
             print("[LAUNCH] Sockets starting . . . ")
-        threading.Thread(target=self.run_socket_forever).start()
+        threading.Thread(target=self.run_socket_forever, daemon=True).start()
         if first_time:
             loop, th = self.start_async()
             loop = self.submit_async(self.reboot_socket(), loop)
@@ -880,7 +880,7 @@ class AsyncWss(AsyncCallbacks, WssClient, Headers):
 
     def start_async(self):
         loop = asyncio.new_event_loop()
-        th = threading.Thread(target=loop.run_forever)
+        th = threading.Thread(target=loop.run_forever, daemon=True)
         th.start()
         return loop, th
 

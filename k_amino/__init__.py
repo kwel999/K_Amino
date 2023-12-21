@@ -8,7 +8,7 @@ from .lib.util import *
 __title__ = "k-amino.py"
 __description__ = "Amino Bots with python!"
 __url__ = "https://github.com/kwel999/K_Amino"
-__version__ = "1.5.3"
+__version__ = "1.5.4"
 __author__ = "KWEL"
 __author_email__ = "itskwel999@gmail.com"
 __license__ = "Apache"
