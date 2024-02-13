@@ -1,40 +1,40 @@
-from __future__ import annotations
+import abc
 import asyncio
-import threading
+import functools
+import inspect
+import logging
 import time
-try:
-    import ujson as json
-except ImportError:
-    import json
-from functools import wraps
-from inspect import signature as fsignature
-from typing import Any, Callable, Dict, List, Optional, TypeVar, TYPE_CHECKING, Union
-from . import websocket_async
-from ..lib import *
-from ..lib.objects import *
+import typing
+import ujson
+import websockets
 from .bot import AsyncBot
-if TYPE_CHECKING:
-    from .client import AsyncClient
-try:
-    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
-except Exception:
-    pass
+from ..lib.objects import Event, Payload, UsersActions
+from ..lib.util import generateSig
 
 __all__ = (
     'AsyncActions',
     'AsyncSetAction'
 )
 
-ET = TypeVar('ET', bound=Callable)
+C = typing.TypeVar('C', bound=typing.Callable[..., typing.Any])
+P = typing.ParamSpec('P')
+R = typing.TypeVar('R')
+
+CoroutineFunction = typing.Callable[P, typing.Awaitable[R]]
+
+logger = logging.getLogger('websockets.client')
+logger.setLevel(logging.DEBUG)
+logger.addHandler(logging.NullHandler())
 
 
-def create_event(func: ET) -> ET:
-    @wraps(func)
-    async def event(self: AsyncCallbacks, *args: Any, **kwargs: Any) -> None:
-        data = func(self, *args, **kwargs)
-        await self.call(func.__name__, data)
-    event.__signature__ = fsignature(func) # type: ignore
-    return event  # type: ignore
+def create_event(func: typing.Callable[P, typing.Awaitable[R]]) -> typing.Callable[P, typing.Awaitable[R]]:
+    @functools.wraps(func)
+    async def event(*args: P.args, **kwargs: P.kwargs) -> R:
+        data = await func(*args, **kwargs)
+        await typing.cast(AsyncCallbacks, args[0]).call(func.__name__, data)
+        return data
+    event.__signature__ = inspect.signature(func)  # type: ignore
+    return event
 
 
 class AsyncCallbacks(AsyncBot):
@@ -42,8 +42,8 @@ class AsyncCallbacks(AsyncBot):
         AsyncBot.__init__(self, prefix=prefix)
         # if the user want to use the script as a bot
         self.is_bot = is_bot
-        self.handlers: Dict[str, List[Callable[[Any], Any]]] = {}
-        self.methods = {
+        self.handlers: typing.Dict[str, typing.List[CoroutineFunction[[Event], typing.Any]]] = {}
+        self.methods: typing.Dict[int, CoroutineFunction[[typing.Dict[str, typing.Any]], typing.Any]] = {
             10: self._resolve_payload,
             201: self._resolve_channel,
             304: self._resolve_chat_action_start,
@@ -51,7 +51,7 @@ class AsyncCallbacks(AsyncBot):
             400: self._resolve_topics,
             1000: self._resolve_chat_message,
         }
-        self.chat_methods = {
+        self.chat_methods: typing.Dict[str, CoroutineFunction[[typing.Union[typing.Dict[str, typing.Any], Event]], Event]] = {
             "0:0": self.on_text_message,
             "0:100": self.on_image_message,
             "0:103": self.on_youtube_message,
@@ -103,18 +103,20 @@ class AsyncCallbacks(AsyncBot):
             "65282:0": self.on_welcome_message,
             "65283:0": self.on_invite_message,
         }
-        self.notif_methods = {
+        self.notif_methods: typing.Dict[str, CoroutineFunction[[typing.Union[typing.Dict[str, typing.Any], Payload]], Payload]] = {
             "18": self.on_alert,
             "53": self.on_member_set_you_host,
             "67": self.on_member_set_you_cohost,
             "68": self.on_member_remove_you_cohost,
         }
-        self.chat_action_methods = {
-            "fetch-channel": self.on_fetch_channel,
+        self.chat_action_methods: typing.Dict[str, CoroutineFunction[[typing.Union[typing.Dict[str, typing.Any], UsersActions]], UsersActions]] = {
             "Typing-start": self.on_user_typing_start,
             "Typing-end": self.on_user_typing_end,
         }
-        self.topics = {
+        self.channel_methods: typing.Dict[str, CoroutineFunction[[typing.Union[typing.Dict[str, typing.Any], Payload]], Payload]] = {
+            "fetch-channel": self.on_fetch_channel
+        }
+        self.topics: typing.Dict[str, CoroutineFunction[[typing.Dict[str, typing.Any]], typing.Any]] = {
             "online-members": self.on_online_users_update,
             "users-start-typing-at": self.on_user_typing_start,
             "users-end-typing-at": self.on_user_typing_end,
@@ -122,39 +124,39 @@ class AsyncCallbacks(AsyncBot):
             "users-end-recording-at": self.on_voice_chat_end,
         }
 
-    async def _resolve_payload(self, data: dict) -> Any:
-        key = f"{data['o']['payload']['notifType']}"
-        return await self.notif_methods.get(key, self.default)(data)
+    async def _resolve_payload(self, data: typing.Dict[str, typing.Any]) -> typing.Any:
+        key = str(data['o']['payload']['notifType'])
+        return self.notif_methods.get(key, self.default)(data)
 
-    async def _resolve_channel(self, data: dict) -> Any:
-        return await self.chat_action_methods["fetch-channel"](data)
+    async def _resolve_channel(self, data: typing.Dict[str, typing.Any]) -> typing.Any:
+        return self.channel_methods.get("fetch-channel", self.default)(data)
 
-    async def _resolve_chat_action_start(self, data: dict) -> Any:
-        key = data["o"]["actions"] + "-start"
-        return await self.chat_action_methods.get(key, self.default)(data)
+    async def _resolve_chat_action_start(self, data: typing.Dict[str, typing.Any]) -> typing.Any:
+        key = data['o']['actions'] + "-start"
+        return self.chat_action_methods.get(key, self.default)(data)
 
-    async def _resolve_chat_action_end(self, data: dict) -> Any:
-        key = data["o"]["actions"] + "-end"
-        return await self.chat_action_methods.get(key, self.default)(data)
+    async def _resolve_chat_action_end(self, data: typing.Dict[str, typing.Any]) -> typing.Any:
+        key = data['o']['actions'] + "-end"
+        return self.chat_action_methods.get(key, self.default)(data)
 
-    async def _resolve_topics(self, data: dict) -> Any:
+    async def _resolve_topics(self, data: typing.Dict[str, typing.Any]) -> typing.Any:
         key = str(data["o"]["topic"]).split(":")[2]
-        return await self.topics.get(key, self.default)(data)
+        return self.topics.get(key, self.default)(data)
 
-    async def _resolve_chat_message(self, data: dict) -> Any:
+    async def _resolve_chat_message(self, data: typing.Dict[str, typing.Any]) -> typing.Any:
         key = f"{data['o']['chatMessage']['type']}:{data['o']['chatMessage'].get('mediaType', 0)}"
-        return await self.chat_methods.get(key, self.default)(data)
+        return self.chat_methods.get(key, self.default)(data)
 
-    async def resolve(self, data: dict) -> Any:
-        return await self.methods.get(data["t"], self.default)(data)
+    async def resolve(self, data: typing.Dict[str, typing.Any]) -> typing.Any:
+        return self.methods.get(data["t"], self.default)(data)
 
-    async def call(self, callType: str, data: Any) -> None:
+    async def call(self, callType: str, data: typing.Any) -> None:
         if self.handlers.get(callType):
             for handler in self.handlers[callType]:
-                await handler(data)
+                handler(data)
 
-    def event(self, eventType: str):
-        def registerHandler(handler: Callable):
+    def event(self, eventType: str) -> typing.Callable[[C], C]:
+        def registerHandler(handler: C) -> C:
             if self.handlers.get(eventType):
                 self.handlers[eventType].append(handler)
             else:
@@ -163,262 +165,262 @@ class AsyncCallbacks(AsyncBot):
         return registerHandler
 
     @staticmethod
-    def convert_event(data: Union[Dict[str, Any], Event]) -> Event:
+    async def convert_event(data: typing.Union[typing.Dict[str, typing.Any], Event]) -> Event:
         return Event(data["o"]).Event if not isinstance(data, Event) else data
 
     @staticmethod
-    def convert_payload(data: Union[Dict[str, Any], Payload]) -> Payload:
+    async def convert_payload(data: typing.Union[typing.Dict[str, typing.Any], Payload]) -> Payload:
         return Payload(data["o"]["payload"]).Payload if not isinstance(data, Payload) else data
 
     @staticmethod
-    def convert_action(data: Union[Dict[str, Any], UsersActions]) -> UsersActions:
+    async def convert_action(data: typing.Union[typing.Dict[str, typing.Any], UsersActions]) -> UsersActions:
         return UsersActions(data).UsersActions
 
     @create_event
-    async def on_alert(self, data: Union[dict, Payload]) -> Optional[Payload]:
-        return self.convert_payload(data)
+    async def on_alert(self, data: typing.Union[typing.Dict[str, typing.Any], Payload]) -> Payload:
+        return await self.convert_payload(data)
 
     @create_event
-    async def on_member_set_you_host(self, data: Union[dict, Payload]) -> Optional[Payload]:
-        return self.convert_payload(data)
+    async def on_member_set_you_host(self, data: typing.Union[typing.Dict[str, typing.Any], Payload]) -> Payload:
+        return await self.convert_payload(data)
 
     @create_event
-    async def on_member_remove_you_cohost(self, data: Union[dict, Payload]) -> Optional[Payload]:
-        return self.convert_payload(data)
+    async def on_member_remove_you_cohost(self, data: typing.Union[typing.Dict[str, typing.Any], Payload]) -> Payload:
+        return await self.convert_payload(data)
 
     @create_event
-    async def on_member_set_you_cohost(self, data: Union[dict, Payload]) -> Optional[Payload]:
-        return self.convert_payload(data)
+    async def on_member_set_you_cohost(self, data: typing.Union[typing.Dict[str, typing.Any], Payload]) -> Payload:
+        return await self.convert_payload(data)
 
     @create_event
-    async def on_text_message(self, data: Union[dict, Event]) -> Optional[Event]:
-        data = self.convert_event(data)
+    async def on_text_message(self, data: typing.Union[typing.Dict[str, typing.Any], Event]) -> Event:
+        data = await self.convert_event(data)
         if self.is_bot:
             params = await self.build_parameters(data)
             await self.trigger(params, str_only=True)
         return data
 
     @create_event
-    async def on_image_message(self, data: Union[dict, Event]) -> Optional[Event]:
-        return self.convert_event(data)
+    async def on_image_message(self, data: typing.Union[typing.Dict[str, typing.Any], Event]) -> Event:
+        return await self.convert_event(data)
 
     @create_event
-    async def on_youtube_message(self, data: Union[dict, Event]) -> Optional[Event]:
-        return self.convert_event(data)
+    async def on_youtube_message(self, data: typing.Union[typing.Dict[str, typing.Any], Event]) -> Event:
+        return await self.convert_event(data)
 
     @create_event
-    async def on_strike_message(self, data: Union[dict, Event]) -> Optional[Event]:
-        return self.convert_event(data)
+    async def on_strike_message(self, data: typing.Union[typing.Dict[str, typing.Any], Event]) -> Event:
+        return await self.convert_event(data)
 
     @create_event
-    async def on_voice_message(self, data: Union[dict, Event]) -> Optional[Event]:
-        return self.convert_event(data)
+    async def on_voice_message(self, data: typing.Union[typing.Dict[str, typing.Any], Event]) -> Event:
+        return await self.convert_event(data)
 
     @create_event
-    async def on_sticker_message(self, data: Union[dict, Event]) -> Optional[Event]:
-        return self.convert_event(data)
+    async def on_sticker_message(self, data: typing.Union[typing.Dict[str, typing.Any], Event]) -> Event:
+        return await self.convert_event(data)
 
     @create_event
-    async def TYPE_USER_SHARE_EXURL(self, data: Union[dict, Event]) -> Optional[Event]:
-        return self.convert_event(data)
+    async def TYPE_USER_SHARE_EXURL(self, data: typing.Union[typing.Dict[str, typing.Any], Event]) -> Event:
+        return await self.convert_event(data)
 
     @create_event
-    async def TYPE_USER_SHARE_USER(self, data: Union[dict, Event]) -> Optional[Event]:
-        return self.convert_event(data)
+    async def TYPE_USER_SHARE_USER(self, data: typing.Union[typing.Dict[str, typing.Any], Event]) -> Event:
+        return await self.convert_event(data)
 
     @create_event
-    async def on_voice_chat_not_answered(self, data: Union[dict, Event]) -> Optional[Event]:
-        return self.convert_event(data)
+    async def on_voice_chat_not_answered(self, data: typing.Union[typing.Dict[str, typing.Any], Event]) -> Event:
+        return await self.convert_event(data)
 
     @create_event
-    async def on_voice_chat_not_cancelled(self, data: Union[dict, Event]) -> Optional[Event]:
-        return self.convert_event(data)
+    async def on_voice_chat_not_cancelled(self, data: typing.Union[typing.Dict[str, typing.Any], Event]) -> Event:
+        return await self.convert_event(data)
 
     @create_event
-    async def on_voice_chat_not_declined(self, data: Union[dict, Event]) -> Optional[Event]:
-        return self.convert_event(data)
+    async def on_voice_chat_not_declined(self, data: typing.Union[typing.Dict[str, typing.Any], Event]) -> Event:
+        return await self.convert_event(data)
 
     @create_event
-    async def on_video_chat_not_answered(self, data: Union[dict, Event]) -> Optional[Event]:
-        return self.convert_event(data)
+    async def on_video_chat_not_answered(self, data: typing.Union[typing.Dict[str, typing.Any], Event]) -> Event:
+        return await self.convert_event(data)
 
     @create_event
-    async def on_video_chat_not_cancelled(self, data: Union[dict, Event]) -> Optional[Event]:
-        return self.convert_event(data)
+    async def on_video_chat_not_cancelled(self, data: typing.Union[typing.Dict[str, typing.Any], Event]) -> Event:
+        return await self.convert_event(data)
 
     @create_event
-    async def on_video_chat_not_declined(self, data: Union[dict, Event]) -> Optional[Event]:
-        return self.convert_event(data)
+    async def on_video_chat_not_declined(self, data: typing.Union[typing.Dict[str, typing.Any], Event]) -> Event:
+        return await self.convert_event(data)
 
     @create_event
-    async def on_avatar_chat_not_answered(self, data: Union[dict, Event]) -> Optional[Event]:
-        return self.convert_event(data)
+    async def on_avatar_chat_not_answered(self, data: typing.Union[typing.Dict[str, typing.Any], Event]) -> Event:
+        return await self.convert_event(data)
 
     @create_event
-    async def on_avatar_chat_not_cancelled(self, data: Union[dict, Event]) -> Optional[Event]:
-        return self.convert_event(data)
+    async def on_avatar_chat_not_cancelled(self, data: typing.Union[typing.Dict[str, typing.Any], Event]) -> Event:
+        return await self.convert_event(data)
 
     @create_event
-    async def on_avatar_chat_not_declined(self, data: Union[dict, Event]) -> Optional[Event]:
-        return self.convert_event(data)
+    async def on_avatar_chat_not_declined(self, data: typing.Union[typing.Dict[str, typing.Any], Event]) -> Event:
+        return await self.convert_event(data)
 
     @create_event
-    async def on_delete_message(self, data: Union[dict, Event]) -> Optional[Event]:
-        return self.convert_event(data)
+    async def on_delete_message(self, data: typing.Union[typing.Dict[str, typing.Any], Event]) -> Event:
+        return await self.convert_event(data)
 
     @create_event
-    async def on_group_member_join(self, data: Union[dict, Event]) -> Optional[Event]:
-        return self.convert_event(data)
+    async def on_group_member_join(self, data: typing.Union[typing.Dict[str, typing.Any], Event]) -> Event:
+        return await self.convert_event(data)
 
     @create_event
-    async def on_group_member_leave(self, data: Union[dict, Event]) -> Optional[Event]:
-        return self.convert_event(data)
+    async def on_group_member_leave(self, data: typing.Union[typing.Dict[str, typing.Any], Event]) -> Event:
+        return await self.convert_event(data)
 
     @create_event
-    async def on_chat_invite(self, data: Union[dict, Event]) -> Optional[Event]:
-        return self.convert_event(data)
+    async def on_chat_invite(self, data: typing.Union[typing.Dict[str, typing.Any], Event]) -> Event:
+        return await self.convert_event(data)
 
     @create_event
-    async def on_chat_background_changed(self, data: Union[dict, Event]) -> Optional[Event]:
-        return self.convert_event(data)
+    async def on_chat_background_changed(self, data: typing.Union[typing.Dict[str, typing.Any], Event]) -> Event:
+        return await self.convert_event(data)
 
     @create_event
-    async def on_chat_title_changed(self, data: Union[dict, Event]) -> Optional[Event]:
-        return self.convert_event(data)
+    async def on_chat_title_changed(self, data: typing.Union[typing.Dict[str, typing.Any], Event]) -> Event:
+        return await self.convert_event(data)
 
     @create_event
-    async def on_chat_icon_changed(self, data: Union[dict, Event]) -> Optional[Event]:
-        return self.convert_event(data)
+    async def on_chat_icon_changed(self, data: typing.Union[typing.Dict[str, typing.Any], Event]) -> Event:
+        return await self.convert_event(data)
 
     @create_event
-    async def on_voice_chat_start(self, data: Union[dict, Event]) -> Optional[Event]:
-        return self.convert_event(data)
+    async def on_voice_chat_start(self, data: typing.Union[typing.Dict[str, typing.Any], Event]) -> Event:
+        return await self.convert_event(data)
 
     @create_event
-    async def on_video_chat_start(self, data: Union[dict, Event]) -> Optional[Event]:
-        return self.convert_event(data)
+    async def on_video_chat_start(self, data: typing.Union[typing.Dict[str, typing.Any], Event]) -> Event:
+        return await self.convert_event(data)
 
     @create_event
-    async def on_avatar_chat_start(self, data: Union[dict, Event]) -> Optional[Event]:
-        return self.convert_event(data)
+    async def on_avatar_chat_start(self, data: typing.Union[typing.Dict[str, typing.Any], Event]) -> Event:
+        return await self.convert_event(data)
 
     @create_event
-    async def on_voice_chat_end(self, data: Union[dict, Event]) -> Optional[Event]:
-        return self.convert_event(data)
+    async def on_voice_chat_end(self, data: typing.Union[typing.Dict[str, typing.Any], Event]) -> Event:
+        return await self.convert_event(data)
 
     @create_event
-    async def on_video_chat_end(self, data: Union[dict, Event]) -> Optional[Event]:
-        return self.convert_event(data)
+    async def on_video_chat_end(self, data: typing.Union[typing.Dict[str, typing.Any], Event]) -> Event:
+        return await self.convert_event(data)
 
     @create_event
-    async def on_avatar_chat_end(self, data: Union[dict, Event]) -> Optional[Event]:
-        return self.convert_event(data)
+    async def on_avatar_chat_end(self, data: typing.Union[typing.Dict[str, typing.Any], Event]) -> Event:
+        return await self.convert_event(data)
 
     @create_event
-    async def on_chat_content_changed(self, data: Union[dict, Event]) -> Optional[Event]:
-        return self.convert_event(data)
+    async def on_chat_content_changed(self, data: typing.Union[typing.Dict[str, typing.Any], Event]) -> Event:
+        return await self.convert_event(data)
 
     @create_event
-    async def on_screen_room_start(self, data: Union[dict, Event]) -> Optional[Event]:
-        return self.convert_event(data)
+    async def on_screen_room_start(self, data: typing.Union[typing.Dict[str, typing.Any], Event]) -> Event:
+        return await self.convert_event(data)
 
     @create_event
-    async def on_screen_room_end(self, data: Union[dict, Event]) -> Optional[Event]:
-        return self.convert_event(data)
+    async def on_screen_room_end(self, data: typing.Union[typing.Dict[str, typing.Any], Event]) -> Event:
+        return await self.convert_event(data)
 
     @create_event
-    async def on_chat_host_transfered(self, data: Union[dict, Event]) -> Optional[Event]:
-        return self.convert_event(data)
+    async def on_chat_host_transfered(self, data: typing.Union[typing.Dict[str, typing.Any], Event]) -> Event:
+        return await self.convert_event(data)
 
     @create_event
-    async def on_text_message_force_removed(self, data: Union[dict, Event]) -> Optional[Event]:
-        return self.convert_event(data)
+    async def on_text_message_force_removed(self, data: typing.Union[typing.Dict[str, typing.Any], Event]) -> Event:
+        return await self.convert_event(data)
 
     @create_event
-    async def on_chat_removed_message(self, data: Union[dict, Event]) -> Optional[Event]:
-        return self.convert_event(data)
+    async def on_chat_removed_message(self, data: typing.Union[typing.Dict[str, typing.Any], Event]) -> Event:
+        return await self.convert_event(data)
 
     @create_event
-    async def on_text_message_removed_by_admin(self, data: Union[dict, Event]) -> Optional[Event]:
-        return self.convert_event(data)
+    async def on_text_message_removed_by_admin(self, data: typing.Union[typing.Dict[str, typing.Any], Event]) -> Event:
+        return await self.convert_event(data)
 
     @create_event
-    async def on_chat_tip(self, data: Union[dict, Event]) -> Optional[Event]:
-        return self.convert_event(data)
+    async def on_chat_tip(self, data: typing.Union[typing.Dict[str, typing.Any], Event]) -> Event:
+        return await self.convert_event(data)
 
     @create_event
-    async def on_chat_pin_announcement(self, data: Union[dict, Event]) -> Optional[Event]:
-        return self.convert_event(data)
+    async def on_chat_pin_announcement(self, data: typing.Union[typing.Dict[str, typing.Any], Event]) -> Event:
+        return await self.convert_event(data)
 
     @create_event
-    async def on_voice_chat_permission_open_to_everyone(self, data: Union[dict, Event]) -> Optional[Event]:
-        return self.convert_event(data)
+    async def on_voice_chat_permission_open_to_everyone(self, data: typing.Union[typing.Dict[str, typing.Any], Event]) -> Event:
+        return await self.convert_event(data)
 
     @create_event
-    async def on_voice_chat_permission_invited_and_requested(self, data: Union[dict, Event]) -> Optional[Event]:
-        return self.convert_event(data)
+    async def on_voice_chat_permission_invited_and_requested(self, data: typing.Union[typing.Dict[str, typing.Any], Event]) -> Event:
+        return await self.convert_event(data)
 
     @create_event
-    async def on_voice_chat_permission_invite_only(self, data: Union[dict, Event]) -> Optional[Event]:
-        return self.convert_event(data)
+    async def on_voice_chat_permission_invite_only(self, data: typing.Union[typing.Dict[str, typing.Any], Event]) -> Event:
+        return await self.convert_event(data)
 
     @create_event
-    async def on_chat_view_only_enabled(self, data: Union[dict, Event]) -> Optional[Event]:
-        return self.convert_event(data)
+    async def on_chat_view_only_enabled(self, data: typing.Union[typing.Dict[str, typing.Any], Event]) -> Event:
+        return await self.convert_event(data)
 
     @create_event
-    async def on_chat_view_only_disabled(self, data: Union[dict, Event]) -> Optional[Event]:
-        return self.convert_event(data)
+    async def on_chat_view_only_disabled(self, data: typing.Union[typing.Dict[str, typing.Any], Event]) -> Event:
+        return await self.convert_event(data)
 
     @create_event
-    async def on_chat_unpin_announcement(self, data: Union[dict, Event]) -> Optional[Event]:
-        return self.convert_event(data)
+    async def on_chat_unpin_announcement(self, data: typing.Union[typing.Dict[str, typing.Any], Event]) -> Event:
+        return await self.convert_event(data)
 
     @create_event
-    async def on_chat_tipping_enabled(self, data: Union[dict, Event]) -> Optional[Event]:
-        return self.convert_event(data)
+    async def on_chat_tipping_enabled(self, data: typing.Union[typing.Dict[str, typing.Any], Event]) -> Event:
+        return await self.convert_event(data)
 
     @create_event
-    async def on_chat_tipping_disabled(self, data: Union[dict, Event]) -> Optional[Event]:
-        return self.convert_event(data)
+    async def on_chat_tipping_disabled(self, data: typing.Union[typing.Dict[str, typing.Any], Event]) -> Event:
+        return await self.convert_event(data)
 
     @create_event
-    async def on_timestamp_message(self, data: Union[dict, Event]) -> Optional[Event]:
-        return self.convert_event(data)
+    async def on_timestamp_message(self, data: typing.Union[typing.Dict[str, typing.Any], Event]) -> Event:
+        return await self.convert_event(data)
 
     @create_event
-    async def on_welcome_message(self, data: Union[dict, Event]) -> Optional[Event]:
-        return self.convert_event(data)
+    async def on_welcome_message(self, data: typing.Union[typing.Dict[str, typing.Any], Event]) -> Event:
+        return await self.convert_event(data)
 
     @create_event
-    async def on_invite_message(self, data: Union[dict, Event]) -> Optional[Event]:
-        return self.convert_event(data)
+    async def on_invite_message(self, data: typing.Union[typing.Dict[str, typing.Any], Event]) -> Event:
+        return await self.convert_event(data)
 
     @create_event
-    async def on_user_typing_start(self, data: Union[dict, UsersActions]) -> Optional[UsersActions]:
-        return self.convert_action(data)
+    async def on_user_typing_start(self, data: typing.Union[typing.Dict[str, typing.Any], UsersActions]) -> UsersActions:
+        return await self.convert_action(data)
 
     @create_event
-    async def on_user_typing_end(self, data: Union[dict, UsersActions]) -> Optional[UsersActions]:
-        return self.convert_action(data)
+    async def on_user_typing_end(self, data: typing.Union[typing.Dict[str, typing.Any], UsersActions]) -> UsersActions:
+        return await self.convert_action(data)
 
     @create_event
-    async def on_online_users_update(self, data: Union[dict, UsersActions]) -> Optional[UsersActions]:
-        return self.convert_action(data)
+    async def on_online_users_update(self, data: typing.Union[typing.Dict[str, typing.Any], UsersActions]) -> UsersActions:
+        return await self.convert_action(data)
 
     @create_event
-    async def on_fetch_channel(self, data: Union[dict, Payload]) -> Optional[Payload]:
-        return self.convert_payload(data)
+    async def on_fetch_channel(self, data: typing.Union[typing.Dict[str, typing.Any], Payload]) -> Payload:
+        return await self.convert_payload(data)
 
     @create_event
-    async def default(self, data: dict) -> Optional[dict]:
+    async def default(self, data: typing.Dict[str, typing.Any]) -> typing.Dict[str, typing.Any]:
         return data
 
     create_event = staticmethod(create_event)
 
 
 class AsyncSetAction:
-    def __init__(self, wss: AsyncWss, data: Dict[str, Any]) -> None:
+    def __init__(self, wss: 'AsyncWssClient', data: typing.Dict[str, typing.Any]) -> None:
         self.action = data
         self.wss = wss
 
@@ -434,102 +436,101 @@ class AsyncSetAction:
 
 
 class AsyncActions:
-    def __init__(self, socket: AsyncWss, comId: int, chatId: str) -> None:
+    def __init__(self, socket: 'AsyncWssClient', comId: int, chatId: str) -> None:
         self.socket = socket
         self.chatId = chatId
         self.comId = comId
 
-    async def setDefaultAction(self) -> None:
+    async def setDefaultAction(self) -> AsyncSetAction:
         """Default browsing."""
-        await AsyncSetAction(
-            self.socket,
-            {
-                "o": {
-                    "actions": ["Browsing"],
-                    "target": f"ndc://x{self.comId}/",
-                    "ndcId": int(self.comId),
-                    "params": {"duration": 27605},
-                    "id": "363483",
-                },
-                "t": 306,
+        return AsyncSetAction(self.socket, {
+            "o": {
+                "actions": ["Browsing"],
+                "target": f"ndc://x{self.comId}/",
+                "ndcId": int(self.comId),
+                "params": {"duration": 27605},
+                "id": "363483",
             },
-        ).start()
+            "t": 306
+        })
 
-    async def Browsing(self, blogId: Optional[str] = None) -> AsyncSetAction:
+    async def Browsing(self, blogId: typing.Optional[str] = None) -> AsyncSetAction:
         """Send browsing action.
 
         Parameters
         ----------
-        blogId : str, optional
-            The target blog, quiz, poll ID. Default is None.
+        blogId : `str`, `optional`
+            The target blog, quiz, poll ID. Default is `None`.
 
         Returns
         -------
-        SetAction
+        AsyncSetAction
             The action object.
 
         """
-        target = f"ndc://x{self.comId}/featured"
-        data = {
+        data: typing.Dict[str, typing.Any] = {
             "o": {
                 "actions": ["Browsing"],
-                "target": target,
+                "target": f"ndc://x{self.comId}/featured",
                 "ndcId": int(self.comId),
                 "id": "363483",
             },
-            "t": 306,
+            "t": 306
         }
         if blogId:
-            target = f"ndc://x{self.comId}/blog/"
+            data["o"]["target"] = f"ndc://x{self.comId}/blog"
             data["o"]["params"] = {"blogType": 1}
-        await self.setDefaultAction()
+        await (await self.setDefaultAction()).start()
         return AsyncSetAction(self.socket, data)
 
-    async def Chatting(self, threadId: Optional[str] = None, threadType: int = 2) -> AsyncSetAction:
+    async def Chatting(self, chatId: typing.Optional[str] = None, chatType: int = 2) -> AsyncSetAction:
         """Send chatting action.
 
         Paramaters
         ----------
-        threadType :
-            The chat type. Default is 2.
+
+        chatId: str, optional
+            The ID of the chat to send the action. If not provided used the init chatId
+        chatType : int, optional
+            The chat type. Default is `2`.
                 0: DM
                 1: Private
                 2: Public
 
         Returns
         -------
-        SetAction
+        AsyncSetAction
             The action object.
 
         """
-        data = {
+        chatId = chatId or self.chatId
+        return AsyncSetAction(self.socket, {
             "o": {
                 "actions": ["Chatting"],
-                "target": f"ndc://x{self.comId}/chat-thread/{self.chatId}",
+                "target": f"ndc://x{self.comId}/chat-thread/{chatId}",
                 "ndcId": int(self.comId),
                 "params": {
                     "duration": 12800,
                     "membershipStatus": 1,
-                    "threadType": threadType,
-                    "threadId": threadId,
+                    "threadType": chatType,
+                    "threadId": chatId
                 },
                 "id": "1715976",
             },
             "t": 306,
-        }
-        await self.setDefaultAction()
-        return AsyncSetAction(self.socket, data)
+        })
 
     async def PublicChats(self) -> AsyncSetAction:
         """Send public chats action.
 
         Returns
         -------
-        SetAction
+        AsyncSetAction
             The action object.
 
         """
-        data = {
+        await (await self.setDefaultAction()).start()
+        return AsyncSetAction(self.socket, {
             "o": {
                 "actions": ["Browsing"],
                 "target": f"ndc://x{self.comId}/public-chats",
@@ -538,20 +539,19 @@ class AsyncActions:
                 "id": "363483",
             },
             "t": 306,
-        }
-        await self.setDefaultAction()
-        return AsyncSetAction(self.socket, data)
+        })
 
     async def LeaderBoards(self) -> AsyncSetAction:
         """Send leaderboard action.
 
         Returns
         ------
-        SetAction
+        AsyncSetAction
             The action object.
 
         """
-        data = {
+        await (await self.setDefaultAction()).start()
+        return AsyncSetAction(self.socket, {
             "o": {
                 "actions": ["Browsing"],
                 "target": f"ndc://x{self.comId}/leaderboards",
@@ -560,29 +560,28 @@ class AsyncActions:
                 "id": "363483",
             },
             "t": 306,
-        }
-        await self.setDefaultAction()
-        return AsyncSetAction(self.socket, data)
+        })
 
-    async def Custom(self, actions: List[str], target: str, params: Dict[str, Any]) -> AsyncSetAction:
+    async def Custom(self, actions: typing.List[str], target: str, params: typing.Dict[str, typing.Any]) -> AsyncSetAction:
         """Send custom action.
 
         Parameters
         ----------
-        actions : list
+        actions : `list[str]`
             The action type list.
-        target : str
+        target : `str`
             The target ndc url.
-        params : dict
+        params : dict[str, Any]
             Others params (blogType, duration, threadType, threadId, etc).
 
         Returns
         -------
-        SetAction
+        AsyncSetAction
             The action object.
 
         """
-        data = {
+        await (await self.setDefaultAction()).start()
+        return AsyncSetAction(self.socket, {
             "o": {
                 "actions": actions,
                 "target": target,
@@ -591,17 +590,28 @@ class AsyncActions:
                 "id": "363483",
             },
             "t": 306,
-        }
-        await self.setDefaultAction()
-        return AsyncSetAction(self.socket, data)
+        })
 
 
-class WssClient:
-    def __init__(self, wss: AsyncWss) -> None:
-        self.wss = wss
+class AsyncWssClient:
+    socket: typing.Optional[websockets.WebSocketClientProtocol]
+    lastMessage: typing.Optional[typing.Dict[str, typing.Any]]
+    @property
+    @abc.abstractmethod
+    def trace(self) -> bool: ...
+
+    async def send(self, data: typing.Dict[str, typing.Any]) -> None:
+        if not self.socket:
+            raise RuntimeError('Socket is not connected.')
+        await self.socket.send(ujson.dumps(data))
+
+    async def receive(self) -> typing.Optional[typing.Dict[str, typing.Any]]:
+        if self.trace:
+            print("[RECEIVE] returning last message")
+        return self.lastMessage
 
     async def joinVoiceChat(self, comId: int, chatId: str, joinType: int = 1) -> None:
-        data = {
+        await self.send({
             "o": {
                 "ndcId": comId,
                 "threadId": chatId,
@@ -609,25 +619,24 @@ class WssClient:
                 "id": "37549515",
             },
             "t": 112,
-        }
-        await self.wss.send(data)
+        })
 
-    async def joinVideoChat(self, comId: int, chatId: str, joinType: int = 1) -> None:
+    async def joinVideoChat(self, comId: int, chatId: str, joinType: typing.Literal[1, 2] = 1) -> None:
         """Join The Video Chat
 
         Parameters
         ----------
-        comId : int
+        comId : `int`
             The community ID.
-        chatId : str
+        chatId : `str`
             The chat ID to join.
-        joinType : int
-            The join role. Default is 1.
+        joinType : `int`
+            The join role. Default is `1`.
                 1: owner
                 2: viewer
 
         """
-        data = {
+        await self.send({
             "o": {
                 "ndcId": int(comId),
                 "threadId": chatId,
@@ -636,21 +645,20 @@ class WssClient:
                 "id": "2154531",
             },
             "t": 108,
-        }
-        await self.wss.send(data)
+        })
 
     async def startVoiceChat(self, comId: int, chatId: str) -> None:
         """Start the voice chat.
 
         Parameters
         ----------
-        comId : int
+        comId : `int`
             The community ID.
-        chatId : str
+        chatId : `str`
             The chat ID to start the live mode.
 
         """
-        data = {
+        await self.send({
             "o": {
                 "ndcId": comId,
                 "threadId": chatId,
@@ -658,9 +666,8 @@ class WssClient:
                 "id": "2154531"
             },
             "t": 112,
-        }
-        await self.wss.send(data)
-        data = {
+        })
+        await self.send({
             "o": {
                 "ndcId": comId,
                 "threadId": chatId,
@@ -668,21 +675,20 @@ class WssClient:
                 "id": "2154531",
             },
             "t": 108,
-        }
-        await self.wss.send(data)
+        })
 
     async def endVoiceChat(self, comId: int, chatId: str) -> None:
         """End the voice chat.
 
         Parameters
         ----------
-        comId : int
+        comId : `int`
             The community ID.
-        chatId : str
+        chatId : `str`
             The chat ID to end the live mode.
 
         """
-        data = {
+        await self.send({
             "o": {
                 "ndcId": comId,
                 "threadId": chatId,
@@ -690,21 +696,20 @@ class WssClient:
                 "id": "2154531"
             },
             "t": 112,
-        }
-        await self.wss.send(data)
+        })
 
     async def joinVideoChatAsSpectator(self, comId: int, chatId: str) -> None:
         """Join video chat as spectator
 
         Parameters
         ----------
-        comId : int
+        comId : `int`
             The community ID.
-        chatId : str
+        chatId : `str`
             The chat ID of live mode.
 
         """
-        data = {
+        await self.send({
             "o": {
                 "ndcId": comId,
                 "threadId": chatId,
@@ -712,11 +717,10 @@ class WssClient:
                 "id": "72446",
             },
             "t": 112,
-        }
-        await self.wss.send(data)
+        })
 
     async def threadJoin(self, comId: int, chatId: str) -> None:
-        data = {
+        await self.send({
             "o": {
                 "ndcId": comId,
                 "threadId": chatId,
@@ -724,11 +728,10 @@ class WssClient:
                 "id": "10335106",
             },
             "t": 112,
-        }
-        await self.wss.send(data)
+        })
 
-    async def channelJoin(self, comId: int, chatId: str):
-        data = {
+    async def channelJoin(self, comId: int, chatId: str) -> None:
+        await self.send({
             "o": {
                 "ndcId": comId,
                 "threadId": chatId,
@@ -736,19 +739,22 @@ class WssClient:
                 "id": "10335436",
             },
             "t": 108,
-        }
-        await self.wss.send(data)
+        })
 
-    async def GetUsersActions(self, comId: int, path: int = 0, chatId: Optional[str] = None) -> UsersActions:
+    @typing.overload
+    async def GetUsersActions(self, comId: int, path: typing.Literal[0, 1], chatId: typing.Optional[str] = None) -> UsersActions: ...
+    @typing.overload
+    async def GetUsersActions(self, comId: int, path: typing.Literal[2, 3, 4, 5], chatId: str) -> UsersActions: ...
+    async def GetUsersActions(self, comId: int, path: int, chatId: typing.Optional[str] = None) -> UsersActions:
         """Get users actions.
     
         This functions gets certain socket actions happening such as online users and users chatting
 
         Parameters
         ----------
-        comId : int
+        comId : `int`
             The community ID.
-        path : int
+        path : `int`
             Takes an intger >= 0 and <= 5 each one sends a certain action not required -set by default to 0 // users-chatting
                 0: chatting users
                 1: online members
@@ -756,7 +762,7 @@ class WssClient:
                 3: users typing end (chat ID required)
                 4: users recording start (chat ID required)
                 5: users recording end (chat ID required)
-        chatId : str
+        chatId : `str`
             The chat ID used in certain actions such as users typing.
 
         Returns
@@ -777,136 +783,132 @@ class WssClient:
             topic = f'{acts.get(path, "users-chatting")}:{chatId}'
         else:
             topic = acts.get(path, "users-chatting")
-        data = {
+        await self.send({
             "o": {
-                "ndcId": int(comId) if comId else 0,
+                "ndcId": comId if comId else 0,
                 "topic": f"ndtopic:x{comId}:{topic}",
                 "id": "4538416",
             },
-            "t": 300,
-        }
-        await self.wss.send(data)
+            "t": 300
+        })
         recv = None
         while not recv:
-            recv = await self.wss.receive()
+            recv = await self.receive()
         return UsersActions(recv).UsersActions
 
-    def actions(self, comId: int, chatId: str) -> AsyncActions:
-        return AsyncActions(self.wss, comId, chatId)
+    async def actions(self, comId: int, chatId: str) -> AsyncActions:
+        return AsyncActions(self, comId, chatId)
 
 
-class AsyncWss(AsyncCallbacks, WssClient, Headers):
-    """Represents the amino websocket client.
+class AsyncWss(AsyncCallbacks, AsyncWssClient):
+    """Represents the amino websocket client (Base).
 
     Parameters
     ----------
-    client : Client
-        The global client object.
-    trace : bool
-        Show websocket trace (logs). Default is False.
-    is_bot : bool
-        The client is a community bot. Default is False (command supported).
+    trace : `bool`
+        Show websocket trace (logs). Default is `False`.
+    is_bot : `bool`
+        The client is a community bot. Default is `False` (command supported).
 
     """
 
-    def __init__(self, client: AsyncClient, trace: bool = False, is_bot: bool = False):
-        self.trace = trace
-        self.socket = None
-        self.headers = None
-        self.client = client
-        self.isOpened = False
-        self.narvi = "https://service.narvii.com/api/v1/"
-        self.socket_url = "wss://ws1.narvii.com"
-        self.lastMessage = {}
-        Headers.__init__(self, getattr(client, 'deviceId', None))
-        AsyncCallbacks.__init__(self, is_bot=is_bot)
-        WssClient.__init__(self, self)
-        websocket_async.enableTrace(trace)
+    @property
+    @abc.abstractmethod
+    def deviceId(self) -> str: ...
+    @property
+    @abc.abstractmethod
+    def sid(self) -> typing.Optional[str]: ...
 
-    async def onOpen(self, *args: Any) -> None:
+    @property
+    def trace(self) -> bool:
+        return getattr(self, '_trace')
+
+    @trace.setter
+    def trace(self, value: bool) -> None:
+        logger.addHandler(logging.StreamHandler() if value else logging.NullHandler())
+        setattr(self, '_trace', value)
+
+    def __init__(self, trace: bool, is_bot: bool) -> None:
+        self.trace = trace
+        self.isOpened = False
+        self.narvi = "https://service.aminoapps.com/api/v1/"
+        self.socket: typing.Optional[websockets.WebSocketClientProtocol] = None
+        self.socket_url = "wss://ws1.narvii.com"
+        self.socket_task: typing.Optional[asyncio.Task[None]] = None
+        self.lastMessage = None
+        AsyncCallbacks.__init__(self, is_bot=is_bot)
+        AsyncWssClient.__init__(self)
+
+    async def ws_task(self) -> None:
+        """Internal websocket task"""
+        # duplicated task
+        if self.isOpened:
+            return
+        # on-open
         self.isOpened = True
         if self.trace:
             print("[ON-OPEN] Sockets are open")
-
-    async def onClose(self, *args: Any) -> None:
-        self.isOpened = False
+        # on-message
+        while self.socket and not self.socket.closed:
+            try:
+                self.lastMessage = typing.cast(typing.Dict[str, typing.Any], ujson.loads(await self.socket.recv()))
+                await self.resolve(self.lastMessage)
+            except websockets.exceptions.ConnectionClosedOK:
+                pass
+            except Exception as exc:
+                # on-error
+                if self.trace:
+                    print(f"[ERROR] Error! {exc!r}")
+                break
+            if self.trace:
+                print("[ON-MESSAGE] Received a message . . .")
+        # on-close
         if self.trace:
             print("[ON-CLOSE] Sockets are closed")
+        if self.isOpened and self.socket_task:  # loop closed by error
+            await self.launch()  # reconnect
+        else:  # close() called
+            self.isOpened = False
+            self.socket_task = None
 
-    async def send(self, data: Dict[str, Any]) -> None:
-        if not self.socket:
-            raise RuntimeError('Socket is not connected.')
-        await self.socket.send(json.dumps(data))
-
-    async def receive(self) -> Optional[Dict[str, Any]]:
-        if self.trace:
-            print("[RECEIVE] returning last message")
-        return self.lastMessage
-
-    async def on_message(self, ws, data) -> None:
-        self.lastMessage = json.loads(data)
-        await self.resolve(self.lastMessage)
-        if self.trace:
-            print("[ON-MESSAGE] Received a message . . .")
-
-    async def launch(self, first_time: bool = True, daemon: bool = False):
-        final = f"{self.client.deviceId}|{int(time.time() * 1000)}"
-        self.headers = {
-            "NDCDEVICEID": self.client.deviceId,
-            "NDCAUTH": self.client.sid,
-            "NDC-MSG-SIG": util.generateSig(data=final),
+    async def launch(self) -> None:
+        if self.isOpened:
+            return
+        final = f"{self.deviceId}|{int(time.time() * 1000)}"
+        headers = {
+            "NDCDEVICEID": self.deviceId,
+            "NDCAUTH": typing.cast(str, self.sid),
+            "NDC-MSG-SIG": generateSig(data=final),
         }
-        self.socket = websocket_async.WebSocketApp(
-            f"{self.socket_url}/?signbody={final.replace('|', '%7C')}",
-            on_message=self.on_message,
-            on_close=self.onClose,
-            on_open=self.onOpen,
-            on_error=self.onError,
-            header=self.headers
-        )
+        for tries in range(2, -1, -1):
+            try:
+                self.socket = await websockets.connect(
+                    f"{self.socket_url}/?signbody={final.replace('|', '%7C')}",
+                    additional_headers=headers,
+                    user_agent_header=None,
+                    compression=None,
+                    logger=logger
+                )
+            except (TimeoutError, ConnectionError):
+                if tries == 0:
+                    raise
+                time.sleep(1)
+                continue
+            else:
+                break
         if self.trace:
             print("[LAUNCH] Sockets starting . . . ")
-        threading.Thread(target=self.run_socket_forever, daemon=daemon).start()
-        if first_time:
-            loop, th = self.start_async()
-            loop = self.submit_async(self.reboot_socket(), loop)
-
-    async def reboot_socket(self):
-        self.run_reboot = True
-        while self.run_reboot:
-            await asyncio.sleep(300)
-            await self.close()
-            await self.launch(False)
-
-    def start_async(self):
-        loop = asyncio.new_event_loop()
-        th = threading.Thread(target=loop.run_forever, daemon=True)
-        th.start()
-        return loop, th
-
-    def submit_async(self, awaitable, loop):
-        return asyncio.run_coroutine_threadsafe(awaitable, loop)
-
-    def stop_async(self, loop: asyncio.AbstractEventLoop):
-        loop.call_soon_threadsafe(loop.stop)
-
-    def run_socket_forever(self, **kwargs):
-        if not self.socket:
-            return
-        loop, th = self.start_async()
-        self.wss_loop = self.submit_async(self.socket.run_forever(ping_interval=30), loop)
-        self.th = th
+        self.socket_task = asyncio.create_task(self.ws_task())
+        time.sleep(5)
 
     async def close(self) -> None:
+        self.isOpened = False
         if self.socket:
             await self.socket.close()
+            self.socket = None
         if self.trace:
             print("[CLOSE] closing socket . . .")
         time.sleep(1.5)
 
-    async def onError(self, *args):
-        if self.trace:
-            print(f"[ERROR] Error! {args}")
-
-    def socket_status(self) -> None:
+    async def socket_status(self) -> None:
         print("\nSockets are OPEN\n" if self.isOpened else "\nSockets are CLOSED\n")

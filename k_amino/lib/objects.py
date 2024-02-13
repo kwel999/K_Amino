@@ -3462,10 +3462,10 @@ class UsersActions:
         self.comId = None
 
         try: self.author_list: UserProfileList = UserProfileList(self.json['o']['userProfileList']).UserProfileList
-        except (TypeError, KeyError): self.author: UserProfile = UserProfileList([])
+        except (TypeError, KeyError): self.author_list: UserProfileList = UserProfileList([])
 
         try: self.author: UserProfile = UserProfile(self.json['o']['userProfileList'][0]).UserProfile
-        except (TypeError, KeyError): self.author: UserProfile = UserProfile([])
+        except (TypeError, KeyError): self.author: UserProfile = UserProfile({})
 
     @property
     def UsersActions(self):

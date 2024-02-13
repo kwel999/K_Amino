@@ -1,12 +1,13 @@
-from __future__ import annotations
-from typing import Any, BinaryIO, Dict, NoReturn, Optional, Union, overload
-from httpx import Client as HClient
-from json_minify import json_minify
-from ujson import dumps
-from colorama import Fore
+import typing_extensions
+import typing
+import json_minify
+import ujson
+import colorama
+import httpx
 from .exception import check_exceptions
 from .headers import Headers
 from .util import api, webApi
+from .types import ProxiesType
 
 __all__ = ("Session",)
 
@@ -16,86 +17,167 @@ class Session(Headers):
 
     Parameters
     ----------
-    client : Client
-        The global client object.
-    proxies : dict[str, str], optional
+    randomAgent: `bool`
+        Change the User-Agent header for all requests.
+    randomDevice: `bool`
+        Change the deviceId for all requests.
+    debug : `bool`
+        Print api debug information.
+    timeout : `int`
+        The timeout for all requests (seconds).
+    lang : `str`, `optional`
+        The HTTP language. e.g. (en-US, es-MX). Default is `None`.
+    client : `Session`, `optional`
+        A Session subclass instance. Default is `None`.
+    proxies : `ProxiesType`, `optional`
         Proxies for HTTP requests supported by the httpx library (https://www.python-httpx.org/advanced/#routing)
-    deviceId : str, optional
+    deviceId: `str`, `optional`
         The device of the client.
 
     """
-
+    @typing.overload
     def __init__(
-        self,
-        client: Optional[Session] = None,
-        proxies: Optional[Dict[str, str]] = None,
-        deviceId: Optional[str] = None,
-        debug: bool = False
+        self: typing_extensions.Self,
+        *,
+        client: 'Session',
+        randomAgent: typing.Optional[bool] = None,
+        randomDevice: typing.Optional[bool] = None,
+        debug: typing.Optional[bool] = None,
+        timeout: typing.Optional[int] = None,
+        lang: typing.Optional[str] = None,
+        proxies: typing.Optional[ProxiesType] = None,
+        deviceId: typing.Optional[str] = None
+    ) -> None: ...
+    @typing.overload
+    def __init__(
+        self: typing_extensions.Self,
+        *,
+        randomAgent: bool,
+        randomDevice: bool,
+        debug: bool,
+        timeout: typing.Optional[int] = None,
+        lang: typing.Optional[str] = None,
+        proxies: typing.Optional[ProxiesType] = None,
+        deviceId: typing.Optional[str] = None
+    ) -> None: ...
+    def __init__(
+        self: typing_extensions.Self,
+        *,
+        client: typing.Optional['Session'] = None,
+        randomAgent: typing.Optional[bool] = None,
+        randomDevice: typing.Optional[bool] = None,
+        debug: typing.Optional[bool] = None,
+        timeout: typing.Optional[int] = None,
+        lang: typing.Optional[str] = None,
+        proxies: typing.Optional[ProxiesType] = None,
+        deviceId: typing.Optional[str] = None
     ) -> None:
-        self.proxies = (proxies or client.proxies) if client else proxies
-        self.sid = client.sid if client else None
-        self.uid = client.uid if client else None
-        self.secret = client.secret if client else None
-        Headers.__init__(self, deviceId=deviceId)
-        self.session = HClient(proxies=self.proxies, timeout=20)  # type: ignore
-        self.sidInit()
+        secret, sid, uid = None, None, None
+        if client:
+            randomAgent = randomAgent if isinstance(randomAgent, bool) else client.randomAgent
+            randomDevice = randomDevice if isinstance(randomDevice, bool) else client.randomDevice
+            debug = debug if isinstance(debug, bool) else client.debug
+            timeout = timeout if isinstance(timeout, int) else client.timeout
+            lang = lang if isinstance(lang, str) else client.lang
+            proxies = proxies if proxies is not None else client.proxies
+            deviceId = deviceId if isinstance(deviceId, str) else client.deviceId
+            secret = client.secret
+            sid = client.sid
+            uid = client.uid
+        assert isinstance(randomAgent, bool), "randomAgent must be a boolean, not %r" % randomAgent
+        assert isinstance(randomDevice, bool), "randomDevice must be a boolean, not %r" % randomDevice
+        assert isinstance(debug, bool), "debug must be a boolean, not %r" % debug
+        super().__init__(
+            randomAgent=randomAgent,
+            randomDevice=randomDevice,
+            lang=lang,
+            deviceId=deviceId,
+            sid=sid,
+            uid=uid
+        )
+        self.proxies = proxies
         self.debug = debug
+        self.timeout = timeout
+        self.secret = secret
 
-    def sidInit(self) -> None:
-        """Set the instance session ID."""
-        if self.sid:
-            self.updateHeaders(sid=self.sid)
-    
+    @property
+    def proxies(self: typing_extensions.Self) -> typing.Optional[ProxiesType]:
+        return getattr(self, '_proxies')
+
+    @proxies.setter
+    def proxies(self: typing_extensions.Self, value: typing.Optional[ProxiesType]) -> None:
+        setattr(self, '_proxies', value)
+
+    @property
+    def debug(self: typing_extensions.Self) -> bool:
+        return getattr(self, '_debug')
+
+    @debug.setter
+    def debug(self: typing_extensions.Self, value: bool) -> None:
+        setattr(self, '_debug', value)
+
+    @property
+    def timeout(self: typing_extensions.Self) -> typing.Optional[int]:
+        return getattr(self, '_timeout')
+
+    @timeout.setter
+    def timeout(self: typing_extensions.Self, value: typing.Optional[int]) -> None:
+        setattr(self, '_timeout', value)
+
+    @property
+    def secret(self: typing_extensions.Self) -> typing.Optional[str]:
+        return getattr(self, '_secret')
+
+    @secret.setter
+    def secret(self: typing_extensions.Self, value: typing.Optional[str]) -> None:
+        setattr(self, '_secret', value)
+
     def messageDebug(self, statusCode: int, method: str, url: str) -> None:
-        print(f"{Fore.GREEN if statusCode == 200 else Fore.RED}{method.upper()}{Fore.RESET} | {url} - {statusCode}")
+        print(f"{colorama.Fore.GREEN if statusCode == 200 else colorama.Fore.RED}{method.upper()}{colorama.Fore.RESET} | {url} - {statusCode}")
 
-    @overload
-    def settings(self, *, sid: Optional[str] = None) -> None: ...
-    @overload
-    def settings(self, *, sid: Optional[str] = None, uid: Optional[str]) -> None: ...
-    @overload
-    def settings(self, *, sid: Optional[str] = None, uid: Optional[str] = None, secret: Optional[str] = None) -> None: ...
-
-    def settings(self, **kwargs: Any) -> None:
+    @typing.overload
+    def settings(self: typing_extensions.Self) -> None: ...
+    @typing.overload
+    def settings(self: typing_extensions.Self, *, sid: typing.Optional[str] = ..., uid: typing.Optional[str] = ..., secret: typing.Optional[str] = ...) -> None: ...
+    def settings(self: typing_extensions.Self, **kwargs: typing.Optional[str]) -> None:
         """Update the instance settings.
 
         Parameters
         ----------
-        sid : str, optional
+        sid : `str`, `optional`
             The new session ID. If not provided, the current value will be used
-        uid : str, optional
+        uid : `str`, `optional`
             The new user ID. If not provided, the current value will be used
-        secret : str, optional
+        secret : `str`, `optional`
             The new secret password. If not provided, the current value will be used
 
         """
         self.sid = kwargs.pop("sid", self.sid)
         self.uid = kwargs.pop("uid", self.uid)
         self.secret = kwargs.pop("secret", self.secret)
-        self.sidInit()
 
     def postRequest(
-        self,
+        self: typing_extensions.Self,
         url: str,
-        data: Union[str, Dict[str, Any], BinaryIO, None] = None,
-        newHeaders: Optional[Dict[str, str]] = None,
+        data: typing.Union[str, typing.Dict[str, typing.Any], typing.BinaryIO, None] = None,
+        newHeaders: typing.Optional[typing.Dict[str, str]] = None,
         webRequest: bool = False,
-        minify: bool = False,
-    ) -> Union[Dict[str, Any], NoReturn]:
+        minify: bool = False
+    ) -> typing.Union[typing.Dict[str, typing.Any], typing.NoReturn]:
         """Make a POST request to the amino API.
 
         Parameters
         ----------
-        url : str
+        url : `str`
             The API url/path.
-        data : str, dict, BinaryIO, optional
-            The raw data to send. Default is None.
-        newHeaders : dict, optional
-            The HTTP headers to include in request. Default is None.
-        webRequest : bool, optional
-            Make web request. Default is False.
-        minify : bool, optional
-            Json minify the data. Default is False.
+        data : `str`, `dict[str, Any]`, `BinaryIO`, `optional`
+            The raw data to send. Default is `None`.
+        newHeaders : `dict[str, str]`, `optional`
+            The HTTP headers to include in request. Default is `None`.
+        webRequest : `bool`, `optional`
+            Make web request. Default is `False`.
+        minify : `bool`, `optional`
+            Json minify the data. Default is `False`.
 
         Returns
         -------
@@ -108,28 +190,31 @@ class Session(Headers):
             If the request fails.
 
         """
+        files = None
         if isinstance(data, dict):
-            data = json_minify(dumps(data)) if minify else dumps(data)
-        # no file support in the signature message
-        self.updateHeaders(data=data if isinstance(data, str) else None, sid=self.sid)
+            data = typing.cast(str, json_minify.json_minify(ujson.dumps(data))) if minify else ujson.dumps(data)
+        elif isinstance(data, typing.BinaryIO):
+            files, data = {"file": data}, None
+        elif not isinstance(data, str):
+            data = None
+        if webRequest:
+            headers, url = self.web_headers(sid=self.sid), webApi(url)
+        else:
+            headers, url = self.app_headers(data=data if isinstance(data, str) else None, sid=self.sid), api(url)
         if newHeaders:
-            self.app_headers.update(newHeaders)
-        req = self.session.post(
-            url=webApi(url) if webRequest else api(url),
-            data=data if isinstance(data, str) else None,  # type: ignore
-            files={"file": data} if isinstance(data, BinaryIO) else None,
-            headers=self.web_headers if webRequest else self.app_headers,
-        )
-        if self.debug:
-            self.messageDebug(statusCode=req.status_code, method='post', url=webApi(url) if webRequest else api(url))
-        return check_exceptions(req.json()) if req.status_code != 200 else req.json()
+            headers.update(newHeaders)
+        with httpx.Client(proxies=self.proxies, timeout=self.timeout) as session:  # type: ignore
+            req = session.post(url=url, content=data, files=files, headers=headers)
+            if self.debug:
+                self.messageDebug(statusCode=req.status_code, method='post', url=url)
+            return check_exceptions(req.json()) if req.status_code != 200 else req.json()
 
-    def getRequest(self, url: str) -> Union[Dict[str, Any], NoReturn]:
+    def getRequest(self: typing_extensions.Self, url: str) -> typing.Union[typing.Dict[str, typing.Any], typing.NoReturn]:
         """Make a GET request to the amino API.
 
         Parameters
         ----------
-        url : str
+        url : `str`
             The API url/path.
 
         Returns
@@ -143,17 +228,19 @@ class Session(Headers):
             If the request fails.
 
         """
-        req = self.session.get(url=api(url), headers=self.updateHeaders())
-        if self.debug:
-            self.messageDebug(statusCode=req.status_code, method='get', url=api(url))
-        return check_exceptions(req.json()) if req.status_code != 200 else req.json()
+        headers, url = self.app_headers(sid=self.sid), api(url)
+        with httpx.Client(proxies=self.proxies, timeout=self.timeout) as session:
+            req = session.get(url=url, headers=headers)
+            if self.debug:
+                self.messageDebug(statusCode=req.status_code, method='get', url=url)
+            return check_exceptions(req.json()) if req.status_code != 200 else req.json()
 
-    def deleteRequest(self, url: str) -> Union[Dict[str, Any], NoReturn]:
+    def deleteRequest(self: typing_extensions.Self, url: str) -> typing.Union[typing.Dict[str, typing.Any], typing.NoReturn]:
         """Make a DELETE request to the amino API.
 
         Parameters
         ----------
-        url : str
+        url : `str`
             The API url/path.
 
         Returns
@@ -167,7 +254,9 @@ class Session(Headers):
             If the request fails.
 
         """
-        req = self.session.delete(url=api(url), headers=self.updateHeaders())
-        if self.debug:
-            self.messageDebug(statusCode=req.status_code, method='delete', url=api(url))
-        return check_exceptions(req.json()) if req.status_code != 200 else req.json()
+        headers, url = self.app_headers(sid=self.sid), api(url)
+        with httpx.Client(proxies=self.proxies, timeout=self.timeout) as session:  # type: ignore
+            req = session.delete(url=url, headers=headers)
+            if self.debug:
+                self.messageDebug(statusCode=req.status_code, method='delete', url=url)
+            return check_exceptions(req.json()) if req.status_code != 200 else req.json()
