@@ -1,4 +1,4 @@
-import typing
+import typing_extensions as typing
 from .util import (
     generateDevice,
     generateSig,

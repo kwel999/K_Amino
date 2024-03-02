@@ -1,13 +1,12 @@
-import typing_extensions
-import typing
+import typing_extensions as typing
 import json_minify
 import ujson
 import colorama
 import httpx
-from .exception import check_exceptions
+from .exception import check_exceptions, check_server_exceptions
 from .headers import Headers
-from .util import api, webApi
-from .types import ProxiesType
+from .util import api, build_proxy_map, webApi
+from .types import ProxiesType, ProxyType
 
 __all__ = ("Session",)
 
@@ -37,7 +36,7 @@ class Session(Headers):
     """
     @typing.overload
     def __init__(
-        self: typing_extensions.Self,
+        self: typing.Self,
         *,
         client: 'Session',
         randomAgent: typing.Optional[bool] = None,
@@ -50,7 +49,7 @@ class Session(Headers):
     ) -> None: ...
     @typing.overload
     def __init__(
-        self: typing_extensions.Self,
+        self: typing.Self,
         *,
         randomAgent: bool,
         randomDevice: bool,
@@ -61,7 +60,7 @@ class Session(Headers):
         deviceId: typing.Optional[str] = None
     ) -> None: ...
     def __init__(
-        self: typing_extensions.Self,
+        self: typing.Self,
         *,
         client: typing.Optional['Session'] = None,
         randomAgent: typing.Optional[bool] = None,
@@ -101,45 +100,45 @@ class Session(Headers):
         self.secret = secret
 
     @property
-    def proxies(self: typing_extensions.Self) -> typing.Optional[ProxiesType]:
+    def proxies(self: typing.Self) -> typing.Optional[ProxiesType]:
         return getattr(self, '_proxies')
 
     @proxies.setter
-    def proxies(self: typing_extensions.Self, value: typing.Optional[ProxiesType]) -> None:
+    def proxies(self: typing.Self, value: typing.Optional[ProxiesType]) -> None:
         setattr(self, '_proxies', value)
 
     @property
-    def debug(self: typing_extensions.Self) -> bool:
+    def debug(self: typing.Self) -> bool:
         return getattr(self, '_debug')
 
     @debug.setter
-    def debug(self: typing_extensions.Self, value: bool) -> None:
+    def debug(self: typing.Self, value: bool) -> None:
         setattr(self, '_debug', value)
 
     @property
-    def timeout(self: typing_extensions.Self) -> typing.Optional[int]:
+    def timeout(self: typing.Self) -> typing.Optional[int]:
         return getattr(self, '_timeout')
 
     @timeout.setter
-    def timeout(self: typing_extensions.Self, value: typing.Optional[int]) -> None:
+    def timeout(self: typing.Self, value: typing.Optional[int]) -> None:
         setattr(self, '_timeout', value)
 
     @property
-    def secret(self: typing_extensions.Self) -> typing.Optional[str]:
+    def secret(self: typing.Self) -> typing.Optional[str]:
         return getattr(self, '_secret')
 
     @secret.setter
-    def secret(self: typing_extensions.Self, value: typing.Optional[str]) -> None:
+    def secret(self: typing.Self, value: typing.Optional[str]) -> None:
         setattr(self, '_secret', value)
 
     def messageDebug(self, statusCode: int, method: str, url: str) -> None:
         print(f"{colorama.Fore.GREEN if statusCode == 200 else colorama.Fore.RED}{method.upper()}{colorama.Fore.RESET} | {url} - {statusCode}")
 
     @typing.overload
-    def settings(self: typing_extensions.Self) -> None: ...
+    def settings(self: typing.Self) -> None: ...
     @typing.overload
-    def settings(self: typing_extensions.Self, *, sid: typing.Optional[str] = ..., uid: typing.Optional[str] = ..., secret: typing.Optional[str] = ...) -> None: ...
-    def settings(self: typing_extensions.Self, **kwargs: typing.Optional[str]) -> None:
+    def settings(self: typing.Self, *, sid: typing.Optional[str] = ..., uid: typing.Optional[str] = ..., secret: typing.Optional[str] = ...) -> None: ...
+    def settings(self: typing.Self, **kwargs: typing.Optional[str]) -> None:
         """Update the instance settings.
 
         Parameters
@@ -157,7 +156,7 @@ class Session(Headers):
         self.secret = kwargs.pop("secret", self.secret)
 
     def postRequest(
-        self: typing_extensions.Self,
+        self: typing.Self,
         url: str,
         data: typing.Union[str, typing.Dict[str, typing.Any], typing.BinaryIO, None] = None,
         newHeaders: typing.Optional[typing.Dict[str, str]] = None,
@@ -204,12 +203,18 @@ class Session(Headers):
         if newHeaders:
             headers.update(newHeaders)
         with httpx.Client(proxies=self.proxies, timeout=self.timeout) as session:  # type: ignore
-            req = session.post(url=url, content=data, files=files, headers=headers)
+            response = session.post(url=url, content=data, files=files, headers=headers)
             if self.debug:
-                self.messageDebug(statusCode=req.status_code, method='post', url=url)
-            return check_exceptions(req.json()) if req.status_code != 200 else req.json()
+                self.messageDebug(statusCode=response.status_code, method='post', url=url)
+            try:
+                content = ujson.loads(response.text)
+            except ujson.JSONDecodeError:
+                check_server_exceptions(response.status_code, response.reason_phrase)
+            if response.status_code != 200:
+                check_exceptions(content)
+            return content
 
-    def getRequest(self: typing_extensions.Self, url: str) -> typing.Union[typing.Dict[str, typing.Any], typing.NoReturn]:
+    def getRequest(self: typing.Self, url: str, params: typing.Optional[typing.Dict[str, typing.Any]] = None) -> typing.Union[typing.Dict[str, typing.Any], typing.NoReturn]:
         """Make a GET request to the amino API.
 
         Parameters
@@ -230,12 +235,18 @@ class Session(Headers):
         """
         headers, url = self.app_headers(sid=self.sid), api(url)
         with httpx.Client(proxies=self.proxies, timeout=self.timeout) as session:
-            req = session.get(url=url, headers=headers)
+            response = session.get(url=url, params=params, headers=headers)
             if self.debug:
-                self.messageDebug(statusCode=req.status_code, method='get', url=url)
-            return check_exceptions(req.json()) if req.status_code != 200 else req.json()
+                self.messageDebug(statusCode=response.status_code, method='get', url=url)
+            try:
+                content = ujson.loads(response.text)
+            except ujson.JSONDecodeError:
+                check_server_exceptions(response.status_code, response.reason_phrase)
+            if response.status_code != 200:
+                check_exceptions(content)
+            return content
 
-    def deleteRequest(self: typing_extensions.Self, url: str) -> typing.Union[typing.Dict[str, typing.Any], typing.NoReturn]:
+    def deleteRequest(self: typing.Self, url: str) -> typing.Union[typing.Dict[str, typing.Any], typing.NoReturn]:
         """Make a DELETE request to the amino API.
 
         Parameters
@@ -256,7 +267,13 @@ class Session(Headers):
         """
         headers, url = self.app_headers(sid=self.sid), api(url)
         with httpx.Client(proxies=self.proxies, timeout=self.timeout) as session:  # type: ignore
-            req = session.delete(url=url, headers=headers)
+            response = session.delete(url=url, headers=headers)
             if self.debug:
-                self.messageDebug(statusCode=req.status_code, method='delete', url=url)
-            return check_exceptions(req.json()) if req.status_code != 200 else req.json()
+                self.messageDebug(statusCode=response.status_code, method='delete', url=url)
+            try:
+                content = ujson.loads(response.text)
+            except ujson.JSONDecodeError:
+                check_server_exceptions(response.status_code, response.reason_phrase)
+            if response.status_code != 200:
+                check_exceptions(content)
+            return content

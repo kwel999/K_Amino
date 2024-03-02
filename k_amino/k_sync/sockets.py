@@ -4,11 +4,12 @@ import inspect
 import logging
 import threading
 import time
-import typing
+import typing_extensions as typing
 import ujson
 import websockets.sync.client
 from .bot import Bot
 from ..lib.objects import Event, Payload, UsersActions
+from ..lib.types import ProxiesType
 from ..lib.util import generateSig
 
 __all__ = (
@@ -814,6 +815,9 @@ class Wss(Callbacks, WssClient):
     def deviceId(self) -> str: ...
     @property
     @abc.abstractmethod
+    def proxies(self) -> typing.Optional[ProxiesType]: ...
+    @property
+    @abc.abstractmethod
     def sid(self) -> typing.Optional[str]: ...
 
     @property
@@ -879,13 +883,23 @@ class Wss(Callbacks, WssClient):
             "NDCAUTH": typing.cast(str, self.sid),
             "NDC-MSG-SIG": generateSig(data=final),
         }
+        # future feature
+        #if self.proxies:
+        #    proxies = build_proxy_map(self.proxies)
+        #    proxy_list: typing.List[typing.Optional[httpx.Proxy]] = []
+        #    for scheme in ("all://", "wss://", "socks5://", "https://", "http://"):
+        #        if scheme not in proxies:
+        #            continue
+        #        proxy_list.append(proxies[scheme])
         for tries in range(2, -1, -1):
+            #ssl_context = ssl.create_default_context()
             try:
                 self.socket = websockets.sync.client.connect(
                     f"{self.socket_url}/?signbody={final.replace('|', '%7C')}",
                     additional_headers=headers,
                     user_agent_header=None,
                     compression=None,
+                    #ssl_context=ssl_context,
                     logger=logger
                 )
             except (TimeoutError, ConnectionError):

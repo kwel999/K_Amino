@@ -1,7 +1,6 @@
 import base64
 import time
-import typing
-import typing_extensions
+import typing_extensions as typing
 from ..lib.objects import (
     BlogList,
     BubbleList,
@@ -440,9 +439,9 @@ class SubClient(Acm, Session):
         return Json(self.postRequest(f"/x{self.comId}/s/chat/thread/{chatId}/message", data))
 
     @typing.overload  # sticker
-    def send_message(self: typing_extensions.Self, chatId: str, *, stickerId: str) -> Json: ...
+    def send_message(self: typing.Self, chatId: str, *, stickerId: str) -> Json: ...
     @typing.overload  # file
-    def send_message(self: typing_extensions.Self, chatId: str, *, file: typing.BinaryIO, fileType: FileType) -> Json: ...
+    def send_message(self: typing.Self, chatId: str, *, file: typing.BinaryIO, fileType: FileType) -> Json: ...
     @typing.overload  # yt-video
     def send_message(
         self,
@@ -453,7 +452,7 @@ class SubClient(Acm, Session):
     ) -> Json: ...
     @typing.overload  # yt-video + embed
     def send_message(
-        self: typing_extensions.Self,
+        self: typing.Self,
         chatId: str,
         *,
         ytVideo: str,
@@ -468,7 +467,7 @@ class SubClient(Acm, Session):
     ) -> Json: ...
     @typing.overload  # yt-video + snippet
     def send_message(
-        self: typing_extensions.Self,
+        self: typing.Self,
         chatId: str,
         *,
         ytVideo: str,
@@ -479,7 +478,7 @@ class SubClient(Acm, Session):
     ) -> Json: ...
     @typing.overload  # text
     def send_message(
-        self: typing_extensions.Self,
+        self: typing.Self,
         chatId: str,
         message: str,
         messageType: int = 0,
@@ -489,7 +488,7 @@ class SubClient(Acm, Session):
     ) -> Json: ...
     @typing.overload  # text + embed
     def send_message(
-        self: typing_extensions.Self,
+        self: typing.Self,
         chatId: str,
         message: typing.Optional[str] = None,
         messageType: int = 0,
@@ -516,7 +515,7 @@ class SubClient(Acm, Session):
         mentionUserIds: typing.Optional[typing.Union[typing.List[str], str]] = None
     ) -> Json: ...
     def send_message(
-        self: typing_extensions.Self,
+        self: typing.Self,
         chatId: str,
         message: typing.Optional[str] = None,
         messageType: int = 0,
@@ -604,18 +603,20 @@ class SubClient(Acm, Session):
         data = {
             "type": messageType,
             "content": message,
-            "attachedObject": {
+            "attachedObject": None,
+            "extensions": extensions,
+            "clientRefId": int(time.time() / 10 % 100000000),
+            "timestamp": int(time.time() * 1000),
+        }
+        if any((embedId, embedType, embedLink, embedTitle, embedContent, embedMedia)):
+            data["attachedObject"] = {
                 "objectId": embedId,
                 "objectType": embedType,
                 "link": embedLink,
                 "title": embedTitle,
                 "content": embedContent,
                 "mediaList": embedMedia,
-            },
-            "extensions": extensions,
-            "clientRefId": int(time.time() / 10 % 100000000),
-            "timestamp": int(time.time() * 1000),
-        }
+            }
         if replyTo:
             data["replyMessageId"] = replyTo
         if stickerId:
@@ -628,7 +629,7 @@ class SubClient(Acm, Session):
                 "link": snippetLink,
                 "mediaType": 100,
                 "mediaUploadValue": base64.b64encode(snippetImage.read()).decode(),
-                "mediaUploadValueContentType": "image/%s" % get_file_type(snippetImage.name, "png"),
+                "mediaUploadValueContentType": "image/%s" % get_file_type(getattr(snippetImage, "name", ""), "png"),
             }]
         if ytVideo:
             data["content"] = None
@@ -641,7 +642,7 @@ class SubClient(Acm, Session):
                 data["mediaType"] = 110
             elif fileType == "image":
                 data["mediaType"] = 100
-                data["mediaUploadValueContentType"] = "image/%s" % get_file_type(file.name, "jpg")
+                data["mediaUploadValueContentType"] = "image/%s" % get_file_type(getattr(file, "name", ""), "jpeg")
                 data["mediaUhqEnabled"] = False
             elif fileType == "gif":
                 data["mediaType"] = 100
@@ -1635,11 +1636,11 @@ class SubClient(Acm, Session):
         return RecentBlogs(self.getRequest(f"/x{self.comId}/s/feed/blog-all?pagingType={pagingType}&start={start}&size={size}")["blogList"]).RecentBlogs
 
     @typing.overload
-    def tip_coins(self: typing_extensions.Self, coins: int, blogId: str, *, transactionId: typing.Optional[str] = None) -> Json: ...
+    def tip_coins(self: typing.Self, coins: int, blogId: str, *, transactionId: typing.Optional[str] = None) -> Json: ...
     @typing.overload
-    def tip_coins(self: typing_extensions.Self, coins: int, *, wikiId: str, transactionId: typing.Optional[str] = None) -> Json: ...
+    def tip_coins(self: typing.Self, coins: int, *, wikiId: str, transactionId: typing.Optional[str] = None) -> Json: ...
     @typing.overload
-    def tip_coins(self: typing_extensions.Self, coins: int, *, chatId: str, transactionId: typing.Optional[str] = None) -> Json: ...
+    def tip_coins(self: typing.Self, coins: int, *, chatId: str, transactionId: typing.Optional[str] = None) -> Json: ...
     def tip_coins(
         self,
         coins: int,

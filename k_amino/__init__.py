@@ -1,4 +1,5 @@
-import typing
+import typing_extensions as typing
+
 from .k_sync import *
 from .k_async import *
 from .lib.util import *
@@ -9,7 +10,7 @@ __url__ = "https://github.com/kwel999/K_Amino"
 __author__ = "KWEL"
 __author_email__ = "itskwel999@gmail.com"
 __license__ = "Apache"
-__newest__ = __version__ = "1.5.5.1"
+__newest__ = __version__ = "1.5.5.6"
 
 if not typing.TYPE_CHECKING:
     from json import loads

@@ -8,10 +8,13 @@ import json
 import os
 import random
 import time
-import typing
-import typing_extensions
+import typing_extensions as typing
 import uuid
 import warnings
+
+import httpx
+
+from .types import ProxiesType
 
 __all__ = (
     'active_time',
@@ -41,7 +44,7 @@ T = typing.TypeVar('T')
 PREFIX: typing.Final[str] = '19'
 SIGKEY: typing.Final[str] = 'dfa5ed192dda6e88a12fe12130dc6206b1251e44'
 DEVKEY: typing.Final[str] = 'e7309ecc0953c6fa60005b2765f99dbbc965c8e9'
-
+NO_ICON_URL = "https://wa1.aminoapps.com/static/img/user-icon-placeholder.png"
 
 def api(path: str) -> str:
     return "https://service.aminoapps.com/api/v1/" + path.removeprefix('/')
@@ -68,8 +71,10 @@ def updateDevice(device: str) -> str:
 def generateUserAgent() -> str:
     return f"Apple iPhone{random.randint(1,99999)},1 iOS v16.5 Main/3.19.0"
 
+
 def generateTransactionId() -> str:
     return str(uuid.UUID(binascii.hexlify(os.urandom(16)).decode("ascii")))
+
 
 def uuidString() -> str:
     return str(uuid.uuid4())
@@ -228,10 +233,23 @@ def deprecated(instead: typing.Optional[str] = None) -> typing.Callable[[typing.
     return decorator
 
 
-def itemgetter(mapping: typing.Dict[str, typing.Any], *args: typing.Any) -> typing.Any:
+def build_proxy_map(proxies: typing.Optional[ProxiesType]) -> typing.Dict[str, typing.Optional[httpx.Proxy]]:
+    if isinstance(proxies, typing.Mapping):
+        return {str(key): httpx.Proxy(url=value) if isinstance(value, (str, httpx.URL)) else value for key, value in proxies.items()}
+    else:
+        return {"all://": httpx.Proxy(url=proxies) if isinstance(proxies, (str, httpx.URL)) else proxies}
+
+
+def itemgetter(mapping: typing.Mapping[str, typing.Any], *args: typing.Any) -> typing.Any:
     for k in args:
         mapping = mapping[k]
     return mapping
+
+
+def attrgetter(obj: typing.Any, *attrnames: str) -> typing.Any:
+    for name in attrnames:
+        obj = getattr(obj, name)
+    return obj
 
 
 class GenericProperty(typing.Generic[G, S]):
@@ -245,7 +263,7 @@ class GenericProperty(typing.Generic[G, S]):
         self.__doc__ = fget.__doc__
 
     @typing.overload
-    def __get__(self, instance: None, owner: typing.Optional[type] = None) -> typing_extensions.Self: ...
+    def __get__(self, instance: None, owner: typing.Optional[type] = None) -> typing.Self: ...
     @typing.overload
     def __get__(self, instance: typing.Any, owner: typing.Optional[type] = None) -> G: ...
     def __get__(self, instance: typing.Optional[typing.Any], owner: typing.Optional[type] = None) -> typing.Union[G, typing.Self]:

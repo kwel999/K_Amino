@@ -1,7 +1,6 @@
 import base64
 import time
-import typing
-import typing_extensions
+import typing_extensions as typing
 from ..lib.objects import (
     BlogList,
     BubbleList,
@@ -440,9 +439,9 @@ class AsyncSubClient(AsyncAcm, AsyncSession):
         return Json(await self.postRequest(f"/x{self.comId}/s/chat/thread/{chatId}/message", data))
 
     @typing.overload  # sticker
-    async def send_message(self: typing_extensions.Self, chatId: str, *, stickerId: str) -> Json: ...
+    async def send_message(self: typing.Self, chatId: str, *, stickerId: str) -> Json: ...
     @typing.overload  # file
-    async def send_message(self: typing_extensions.Self, chatId: str, *, file: typing.BinaryIO, fileType: FileType) -> Json: ...
+    async def send_message(self: typing.Self, chatId: str, *, file: typing.BinaryIO, fileType: FileType) -> Json: ...
     @typing.overload  # yt-video
     async def send_message(
         self,
@@ -453,7 +452,7 @@ class AsyncSubClient(AsyncAcm, AsyncSession):
     ) -> Json: ...
     @typing.overload  # yt-video + embed
     async def send_message(
-        self: typing_extensions.Self,
+        self: typing.Self,
         chatId: str,
         *,
         ytVideo: str,
@@ -468,7 +467,7 @@ class AsyncSubClient(AsyncAcm, AsyncSession):
     ) -> Json: ...
     @typing.overload  # yt-video + snippet
     async def send_message(
-        self: typing_extensions.Self,
+        self: typing.Self,
         chatId: str,
         *,
         ytVideo: str,
@@ -479,7 +478,7 @@ class AsyncSubClient(AsyncAcm, AsyncSession):
     ) -> Json: ...
     @typing.overload  # text
     async def send_message(
-        self: typing_extensions.Self,
+        self: typing.Self,
         chatId: str,
         message: str,
         messageType: int = 0,
@@ -489,7 +488,7 @@ class AsyncSubClient(AsyncAcm, AsyncSession):
     ) -> Json: ...
     @typing.overload  # text + embed
     async def send_message(
-        self: typing_extensions.Self,
+        self: typing.Self,
         chatId: str,
         message: typing.Optional[str] = None,
         messageType: int = 0,
@@ -516,7 +515,7 @@ class AsyncSubClient(AsyncAcm, AsyncSession):
         mentionUserIds: typing.Optional[typing.Union[typing.List[str], str]] = None
     ) -> Json: ...
     async def send_message(
-        self: typing_extensions.Self,
+        self: typing.Self,
         chatId: str,
         message: typing.Optional[str] = None,
         messageType: int = 0,
@@ -604,18 +603,20 @@ class AsyncSubClient(AsyncAcm, AsyncSession):
         data = {
             "type": messageType,
             "content": message,
-            "attachedObject": {
+            "attachedObject": None,
+            "extensions": extensions,
+            "clientRefId": int(time.time() / 10 % 100000000),
+            "timestamp": int(time.time() * 1000),
+        }
+        if any((embedId, embedType, embedLink, embedTitle, embedContent, embedMedia)):
+            data["attachedObject"] = {
                 "objectId": embedId,
                 "objectType": embedType,
                 "link": embedLink,
                 "title": embedTitle,
                 "content": embedContent,
                 "mediaList": embedMedia,
-            },
-            "extensions": extensions,
-            "clientRefId": int(time.time() / 10 % 100000000),
-            "timestamp": int(time.time() * 1000),
-        }
+            }
         if replyTo:
             data["replyMessageId"] = replyTo
         if stickerId:
@@ -1635,11 +1636,11 @@ class AsyncSubClient(AsyncAcm, AsyncSession):
         return RecentBlogs((await self.getRequest(f"/x{self.comId}/s/feed/blog-all?pagingType={pagingType}&start={start}&size={size}"))["blogList"]).RecentBlogs
 
     @typing.overload
-    async def tip_coins(self: typing_extensions.Self, coins: int, blogId: str, *, transactionId: typing.Optional[str] = None) -> Json: ...
+    async def tip_coins(self: typing.Self, coins: int, blogId: str, *, transactionId: typing.Optional[str] = None) -> Json: ...
     @typing.overload
-    async def tip_coins(self: typing_extensions.Self, coins: int, *, wikiId: str, transactionId: typing.Optional[str] = None) -> Json: ...
+    async def tip_coins(self: typing.Self, coins: int, *, wikiId: str, transactionId: typing.Optional[str] = None) -> Json: ...
     @typing.overload
-    async def tip_coins(self: typing_extensions.Self, coins: int, *, chatId: str, transactionId: typing.Optional[str] = None) -> Json: ...
+    async def tip_coins(self: typing.Self, coins: int, *, chatId: str, transactionId: typing.Optional[str] = None) -> Json: ...
     async def tip_coins(
         self,
         coins: int,

@@ -1,7 +1,7 @@
-import typing
-import typing_extensions
+import typing_extensions as typing
 import easy_events
 from ..lib.objects import Event
+from ..lib.util import NO_ICON_URL
 if typing.TYPE_CHECKING:
     from .local import AsyncSubClient  # circular import
 
@@ -35,6 +35,7 @@ class AsyncParameters(easy_events.Parameters):
         self.comId = typing.cast(int, self.event.comId)
         self.authorId = typing.cast(str, self.author.userId)
         self.chatId = typing.cast(str, self.message.chatId)
+        self.authorIcon = typing.cast(str, self.message.author.icon or NO_ICON_URL)
         self.messageId = typing.cast(str, self.message.messageId)
         self.mentions = typing.cast(typing.List[str], event.message.mentionUserIds or [])
         # defaults
@@ -58,16 +59,16 @@ class AsyncBot(easy_events.AsyncEvents):
         The command prefix. Default is `!`
 
     """
-    def __init__(self: typing_extensions.Self, prefix: str = "!"):
+    def __init__(self: typing.Self, prefix: str = "!"):
         super().__init__(prefix=prefix, str_only=True, first_parameter_object=True, default_event=False)
 
-    async def build_parameters(self: typing_extensions.Self, obj_data: Event) -> AsyncParameters:
+    async def build_parameters(self: typing.Self, obj_data: Event) -> AsyncParameters:
         subClient = AsyncSubClient(comId=obj_data.comId, client=self, acm=True)
         return AsyncParameters(obj_data, subClient, self.prefix, str_only=True)
 
     @typing.overload
     def command(
-        self: typing_extensions.Self,
+        self: typing.Self,
         aliases: typing.List[str] = [],
         condition: typing.Optional[typing.Callable[..., bool]] = None,
         type: typing.Optional[str] = None,
@@ -76,7 +77,7 @@ class AsyncBot(easy_events.AsyncEvents):
     ) -> typing.Callable[[C], C]: ...
     @typing.overload
     def command(
-        self: typing_extensions.Self,
+        self: typing.Self,
         aliases: typing.List[str] = [],
         condition: typing.Optional[typing.Callable[..., bool]] = None,
         type: typing.Optional[str] = None,
@@ -84,7 +85,7 @@ class AsyncBot(easy_events.AsyncEvents):
         event_type: typing.Optional[str] = None
     ) -> C: ...
     def command(
-        self: typing_extensions.Self,
+        self: typing.Self,
         aliases: typing.List[str] = [],
         condition: typing.Optional[typing.Callable[..., bool]] = None,
         type: typing.Optional[str] = None,

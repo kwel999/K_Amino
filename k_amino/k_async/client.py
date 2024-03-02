@@ -1,7 +1,6 @@
 import base64
 import time
-import typing
-import typing_extensions
+import typing_extensions as typing
 from .sockets import AsyncWss
 from ..lib.objects import (
     Account,
@@ -72,7 +71,7 @@ class AsyncClient(AsyncSession, AsyncWss):
     """
 
     def __init__(
-        self: typing_extensions.Self,
+        self: typing.Self,
         deviceId: typing.Optional[str] = None,
         proxy: typing.Optional[ProxyType] = None,
         proxies: typing.Optional[ProxiesType] = None,
@@ -101,7 +100,7 @@ class AsyncClient(AsyncSession, AsyncWss):
         )
 
     async def change_lang(
-        self: typing_extensions.Self,
+        self: typing.Self,
         lang: str = "en-US"
     ) -> None:
         """Change the content language.
@@ -114,35 +113,8 @@ class AsyncClient(AsyncSession, AsyncWss):
         """
         self.lang = lang
 
-    async def sid_login(
-        self: typing_extensions.Self,
-        sid: str,
-        socket: bool = False
-    ) -> Account:
-        """Login via session ID.
-
-        Parameters
-        ----------
-        sid : `str`
-            The amino session ID.
-        socket : `bool`, `optional`
-            Run the websocket after login. Default is `False`.
-
-        Returns
-        -------
-        Account
-            The user account.
-
-        """
-        self.settings(sid=sid)
-        info = await self.get_account_info()
-        self.settings(uid=info.userId)
-        if socket:
-            await self.launch()
-        return info
-
     async def login_facebook(
-        self: typing_extensions.Self,
+        self: typing.Self,
         email: str,
         accessToken: str,
         address: typing.Optional[str] = None,
@@ -188,7 +160,7 @@ class AsyncClient(AsyncSession, AsyncWss):
         return Login(req)
 
     async def login_google(
-        self: typing_extensions.Self,
+        self: typing.Self,
         accessToken: str,
         address: typing.Optional[str] = None,
         socket: bool = False
@@ -230,7 +202,7 @@ class AsyncClient(AsyncSession, AsyncWss):
         return Login(req)
 
     async def auto_signup_google(
-        self: typing_extensions.Self,
+        self: typing.Self,
         email: str,
         password: str,
         nickname: str,
@@ -283,27 +255,20 @@ class AsyncClient(AsyncSession, AsyncWss):
             await self.launch()
         return Login(req)
 
-    @typing.overload
-    async def login(self: typing_extensions.Self, email: str, password: str, *, socket: bool = False) -> Login: ...
-    @typing.overload
-    async def login(self: typing_extensions.Self, email: str, *, secret: str, socket: bool = False) -> Login: ...
     async def login(
-        self: typing_extensions.Self,
-        email: typing.Optional[str] = None,
-        password: typing.Optional[str] = None,
-        secret: typing.Optional[str] = None,
+        self: typing.Self,
+        email: str,
+        password: str,
         socket: bool = False,
     ) -> Login:
         """Login via email.
 
         Parameters
         ----------
-        email : `str`, `optional`
-            The account email. Default is `None`.
-        password : `str`, `optional`
-            The account password. Default is `None`.
-        secret : `str`, `optional`
-            The account secret password. Default is `None`.
+        email : `str`
+            The account email.
+        password : `str`
+            The account password.
         socket : `bool`, `optional`
             Run the websocket after login. Default is `False`.
 
@@ -318,11 +283,9 @@ class AsyncClient(AsyncSession, AsyncWss):
             If no valid login info provided.
 
         """
-        if not (email and (password or secret)):
-            raise ValueError("Please provide VALID login info")
         data = {
             "email": email,
-            "secret": f"0 {password}" if password else secret,
+            "secret": f"0 {password}",
             "clientType": 100,
             "action": "normal",
             "deviceID": self.deviceId,
@@ -330,12 +293,69 @@ class AsyncClient(AsyncSession, AsyncWss):
             "timestamp": int(time.time() * 1000),
         }
         req = await self.postRequest("/g/s/auth/login", data)
-        self.settings(sid=req["sid"], uid=req["auid"], secret=secret if secret else req["secret"])
+        self.settings(sid=req["sid"], uid=req["auid"], secret=req["secret"])
         if socket or self.is_bot:
             await self.launch()
         return Login(req)
 
-    async def logout(self: typing_extensions.Self) -> Json:
+    async def login_secret(self, secret: str, socket: bool = False) -> Login:
+        """Login via secret token.
+
+        Parameters
+        ----------
+        secret : str
+            The account secret token.
+        socket : `bool`, `optional`
+            Run the websocket after login. Default is `False`.
+
+        Returns
+        -------
+        Login
+            The login object.
+
+        """
+        data = {
+            "secret": secret,
+            "clientType": 100,
+            "action": "normal",
+            "deviceID": self.deviceId,
+            "v": 2,
+            "timestamp": int(time.time() * 1000),
+        }
+        req = await self.postRequest("/g/s/auth/login", data)
+        self.settings(sid=req["sid"], uid=req["auid"], secret=secret)
+        if socket or self.is_bot:
+            await self.launch()
+        return Login(req)
+
+    async def sid_login(
+        self: typing.Self,
+        sid: str,
+        socket: bool = False
+    ) -> Account:
+        """Login via session ID.
+
+        Parameters
+        ----------
+        sid : `str`
+            The amino session ID.
+        socket : `bool`, `optional`
+            Run the websocket after login. Default is `False`.
+
+        Returns
+        -------
+        Account
+            The user account.
+
+        """
+        self.settings(sid=sid)
+        info = await self.get_account_info()
+        self.settings(uid=info.userId)
+        if socket:
+            await self.launch()
+        return info
+
+    async def logout(self: typing.Self) -> Json:
         """Logout from the account.
 
         Returns
@@ -356,11 +376,11 @@ class AsyncClient(AsyncSession, AsyncWss):
         return Json(req)
 
     @typing.overload
-    async def update_email(self: typing_extensions.Self, email: str, new_email: str, code: str, password: str) -> Json: ...
+    async def update_email(self: typing.Self, email: str, new_email: str, code: str, password: str) -> Json: ...
     @typing.overload
-    async def update_email(self: typing_extensions.Self, email: str, new_email: str, code: str, *, secret: str) -> Json: ...
+    async def update_email(self: typing.Self, email: str, new_email: str, code: str, *, secret: str) -> Json: ...
     async def update_email(
-        self: typing_extensions.Self,
+        self: typing.Self,
         email: str,
         new_email: str,
         code: str,
@@ -406,7 +426,7 @@ class AsyncClient(AsyncSession, AsyncWss):
             }
         }))
 
-    async def check_device(self: typing_extensions.Self, deviceId: str) -> Json:
+    async def check_device(self: typing.Self, deviceId: str) -> Json:
         """Check if the device is avalible.
 
         Parameters
@@ -427,7 +447,7 @@ class AsyncClient(AsyncSession, AsyncWss):
         }
         return Json(await self.postRequest("/g/s/device/", data, newHeaders={"NDCDEVICEID": deviceId}))
 
-    async def upload_media(self: typing_extensions.Self, file: typing.BinaryIO, fileType: FileType) -> str:
+    async def upload_media(self: typing.Self, file: typing.BinaryIO, fileType: FileType) -> str:
         """Upload a media to the amino server.
 
         Parameters
@@ -452,9 +472,9 @@ class AsyncClient(AsyncSession, AsyncWss):
         newHeaders = {"content-type": ftype, "content-length": str(len(file.read()))}
         return (await self.postRequest("/g/s/media/upload", data=file, newHeaders=newHeaders))["mediaValue"]
 
-    @typing_extensions.deprecated("upload_image is deprecated, use upload_media instead")
+    @typing.deprecated("upload_image is deprecated, use upload_media instead")
     @deprecated(upload_media.__qualname__)
-    async def upload_image(self: typing_extensions.Self, image: typing.BinaryIO) -> str:
+    async def upload_image(self: typing.Self, image: typing.BinaryIO) -> str:
         """Upload an image to the amino server.
 
         Parameters
@@ -470,13 +490,17 @@ class AsyncClient(AsyncSession, AsyncWss):
         """
         return await self.upload_media(image, "image")
 
-    async def send_verify_code(self: typing_extensions.Self, email: str) -> Json:
+    async def send_verify_code(self: typing.Self, email: str, resetPassword: bool = False, key: typing.Optional[str] = None) -> Json:
         """Request verification code via email.
 
         Parameters
         ----------
         email : `str`
             The email to send the code.
+        resetPassword : `bool`, `optional`
+            Verification is to reset the password.
+        key : `str`, `optional`
+            The verification key info.
 
         Returns
         -------
@@ -490,9 +514,14 @@ class AsyncClient(AsyncSession, AsyncWss):
             "deviceID": self.deviceId,
             "timestamp": int(time.time() * 1000),
         }
+        if key:
+            data["verifyInfoKey"] = key 
+        if resetPassword:
+            data["level"] = 2
+            data["purpose"] = "reset-password"
         return Json(await self.postRequest("/g/s/auth/request-security-validation", data))
 
-    async def accept_host(self: typing_extensions.Self, requestId: str, chatId: str) -> Json:
+    async def accept_host(self: typing.Self, requestId: str, chatId: str) -> Json:
         """Accept the chat host transfer request.
 
         Parameters
@@ -510,8 +539,82 @@ class AsyncClient(AsyncSession, AsyncWss):
         """
         return Json(await self.postRequest(f"/g/s/chat/thread/{chatId}/transfer-organizer/{requestId}/accept"))
 
-    async def verify_account(self: typing_extensions.Self, email: str, code: str) -> Json:
-        """Complete the account verification.
+    async def verify(
+        self: typing.Self,
+        email: str,
+        code: str,
+        deviceId: typing.Optional[str] = None,
+        resetPassword: bool = False
+    ) -> Json:
+        """Confirm an email action.
+
+        Parameters
+        ----------
+        email : str
+            The account email.
+        code : str
+            The verification code.
+        deviceId : str, optional
+            The deviceId to send the confirmation. If not provided, the current deviceId is used.
+        resetPassword : bool, optional
+            The action is to reset the password. Default is `False`.
+
+        Returns
+        -------
+        Json
+            The JSON response.
+
+        """
+        data = {
+            "validationContext": {
+                "type": 1,
+                "identity": email,
+                "data": {"code": code}},
+            "deviceID": deviceId or self.deviceId,
+            "timestamp": int(time.time() * 1000)
+        }
+        if resetPassword:
+            data["level"] = 2
+        return Json(await self.postRequest("/g/s/auth/check-security-validation", data))
+
+    async def verify_account(self, email: str, key: str, code: typing.Optional[str] = None) -> Json:
+        """Confirm that an email is yours
+    
+        Normally, you need to confirm when logging in on other devices for amino to allow you to log in.
+
+        Parameters
+        ----------
+        email : `str`
+            The account email to verify.
+        key : `str`
+            The verification token received in the mailbox (verifyInfoKey).
+        code : `str`, `optional`
+            The verification code received in the mailbox.
+
+        Raises
+        ------
+        InvalidAuthNewDeviceLink
+            If the token does not exist or is already used.
+
+        Returns
+        -------
+        Json
+            The JSON response.
+
+        """
+        return Json(await self.postRequest("/g/s/auth/verify-account", data={
+            "validationContext": {
+                "type": 1,
+                "identity": email,
+                "data": {"code": code}
+            },
+            "verifyInfoKey": key,
+            "deviceID": self.deviceId,
+            "timestamp": int(time.time() * 1000)
+        }))
+
+    async def activate_account(self: typing.Self, email: str, code: str) -> Json:
+        """Complete the account activation verification.
 
         Parameters
         ----------
@@ -535,11 +638,11 @@ class AsyncClient(AsyncSession, AsyncWss):
         return Json(await self.postRequest("/g/s/auth/activate-email", data))
 
     @typing.overload
-    async def restore(self: typing_extensions.Self, email: str, password: str) -> Json: ...
+    async def restore(self: typing.Self, email: str, password: str) -> Json: ...
     @typing.overload
-    async def restore(self: typing_extensions.Self, email: str, *, secret: str) -> Json: ...
+    async def restore(self: typing.Self, email: str, *, secret: str) -> Json: ...
     async def restore(
-        self: typing_extensions.Self,
+        self: typing.Self,
         email: str,
         password: typing.Optional[str] = None,
         secret: typing.Optional[str] = None
@@ -568,10 +671,10 @@ class AsyncClient(AsyncSession, AsyncWss):
         return Json(await self.postRequest("/g/s/account/delete-request/cancel", data))
 
     @typing.overload
-    async def delete_account(self: typing_extensions.Self, password: str) -> Json: ...
+    async def delete_account(self: typing.Self, password: str) -> Json: ...
     @typing.overload
-    async def delete_account(self: typing_extensions.Self, *, secret: str) -> Json: ...
-    async def delete_account(self: typing_extensions.Self, password: typing.Optional[str] = None, secret: typing.Optional[str] = None) -> Json:
+    async def delete_account(self: typing.Self, *, secret: str) -> Json: ...
+    async def delete_account(self: typing.Self, password: typing.Optional[str] = None, secret: typing.Optional[str] = None) -> Json:
         """Delete a user account.
 
         Parameters
@@ -601,7 +704,7 @@ class AsyncClient(AsyncSession, AsyncWss):
         }
         return Json(await self.postRequest("/g/s/account/delete-request", data))
 
-    async def get_account_info(self: typing_extensions.Self) -> Account:
+    async def get_account_info(self: typing.Self) -> Account:
         """Get account information.
 
         Returns
@@ -612,7 +715,7 @@ class AsyncClient(AsyncSession, AsyncWss):
         """
         return Account((await self.getRequest("/g/s/account"))["account"])
 
-    async def claim_coupon(self: typing_extensions.Self) -> Json:
+    async def claim_coupon(self: typing.Self) -> Json:
         """Claim the new-user coupon.
 
         Returns
@@ -623,7 +726,7 @@ class AsyncClient(AsyncSession, AsyncWss):
         """
         return Json(await self.postRequest("/g/s/coupon/new-user-coupon/claim"))
 
-    async def change_amino_id(self: typing_extensions.Self, aminoId: str) -> Json:
+    async def change_amino_id(self: typing.Self, aminoId: str) -> Json:
         """Change the account amino ID.
 
         Parameters
@@ -643,7 +746,7 @@ class AsyncClient(AsyncSession, AsyncWss):
         }
         return Json(await self.postRequest("/g/s/account/change-amino-id", data))
 
-    async def get_my_communities(self: typing_extensions.Self, start: int = 0, size: int = 25) -> CommunityList:
+    async def get_my_communities(self: typing.Self, start: int = 0, size: int = 25) -> CommunityList:
         """Get a list of the user's joined communities.
 
         Parameters
@@ -661,7 +764,7 @@ class AsyncClient(AsyncSession, AsyncWss):
         """
         return CommunityList((await self.getRequest(f"/g/s/community/joined?v=1&start={start}&size={size}"))["communityList"]).CommunityList
 
-    async def get_chat_threads(self: typing_extensions.Self, start: int = 0, size: int = 25) -> ThreadList:
+    async def get_chat_threads(self: typing.Self, start: int = 0, size: int = 25) -> ThreadList:
         """Get a list of the user's joined chats.
 
         Parameters
@@ -679,7 +782,7 @@ class AsyncClient(AsyncSession, AsyncWss):
         """
         return ThreadList((await self.getRequest(f"/g/s/chat/thread?type=joined-me&start={start}&size={size}"))["threadList"]).ThreadList
 
-    async def get_chat_info(self: typing_extensions.Self, chatId: str) -> Thread:
+    async def get_chat_info(self: typing.Self, chatId: str) -> Thread:
         """Get chat information.
 
         Parameters
@@ -695,7 +798,7 @@ class AsyncClient(AsyncSession, AsyncWss):
         """
         return Thread((await self.getRequest(f"/g/s/chat/thread/{chatId}"))["thread"]).Thread
 
-    async def leave_chat(self: typing_extensions.Self, chatId: str) -> Json:
+    async def leave_chat(self: typing.Self, chatId: str) -> Json:
         """Leave a chat.
 
         Parameters
@@ -711,7 +814,7 @@ class AsyncClient(AsyncSession, AsyncWss):
         """
         return Json(self.deleteRequest(f"/g/s/chat/thread/{chatId}/member/{self.uid}"))
 
-    async def join_chat(self: typing_extensions.Self, chatId: str) -> Json:
+    async def join_chat(self: typing.Self, chatId: str) -> Json:
         """Join a chat.
 
         Parameters
@@ -728,7 +831,7 @@ class AsyncClient(AsyncSession, AsyncWss):
         return Json(await self.postRequest(f"/g/s/chat/thread/{chatId}/member/{self.uid}"))
 
     async def start_chat(
-        self: typing_extensions.Self,
+        self: typing.Self,
         userId: typing.Union[typing.List[str], str],
         title: typing.Optional[str] = None,
         message: typing.Optional[str] = None,
@@ -771,7 +874,7 @@ class AsyncClient(AsyncSession, AsyncWss):
         }
         return Thread((await self.postRequest(f"/g/s/chat/thread", data))["thread"]).Thread
 
-    async def get_from_link(self: typing_extensions.Self, link: str) -> FromCode:
+    async def get_from_link(self: typing.Self, link: str) -> FromCode:
         """Get data from a link.
 
         Parameters
@@ -788,7 +891,7 @@ class AsyncClient(AsyncSession, AsyncWss):
         return FromCode((await self.getRequest(f"/g/s/link-resolution?q={link}"))["linkInfoV2"]["extensions"]).FromCode
 
     async def edit_profile(
-        self: typing_extensions.Self,
+        self: typing.Self,
         nickname: typing.Optional[str] = None,
         content: typing.Optional[str] = None,
         icon: typing.Optional[typing.Union[typing.BinaryIO, str]] = None,
@@ -854,7 +957,7 @@ class AsyncClient(AsyncSession, AsyncWss):
             data["extensions"] = extensions
         return Json(await self.postRequest(f"/g/s/user-profile/{self.uid}", data))
 
-    async def flag_community(self: typing_extensions.Self, comId: str, reason: str, flagType: int = 0) -> Json:
+    async def flag_community(self: typing.Self, comId: str, reason: str, flagType: int = 0) -> Json:
         """Flag a community.
 
         Parameters
@@ -889,7 +992,7 @@ class AsyncClient(AsyncSession, AsyncWss):
         }
         return Json(await self.postRequest(f"/x{comId}/s/g-flag", data))
 
-    async def leave_community(self: typing_extensions.Self, comId: int) -> Json:
+    async def leave_community(self: typing.Self, comId: int) -> Json:
         """Leave a community.
 
         Parameters
@@ -905,7 +1008,7 @@ class AsyncClient(AsyncSession, AsyncWss):
         """
         return Json(await self.postRequest(f"x/{comId}/s/community/leave"))
 
-    async def join_community(self: typing_extensions.Self, comId: int, invId: typing.Optional[str] = None) -> Json:
+    async def join_community(self: typing.Self, comId: int, invId: typing.Optional[str] = None) -> Json:
         """Join a community.
 
         Parameters
@@ -927,7 +1030,7 @@ class AsyncClient(AsyncSession, AsyncWss):
         return Json(await self.postRequest(f"/x{comId}/s/community/join", data))
 
     async def flag(
-        self: typing_extensions.Self,
+        self: typing.Self,
         reason: str,
         flagType: int = 0,
         blogId: typing.Optional[str] = None,
@@ -986,7 +1089,7 @@ class AsyncClient(AsyncSession, AsyncWss):
             raise ValueError("Please put blog, user or wiki Id")
         return Json(await self.postRequest("/g/s/flag", data))
 
-    async def unfollow(self: typing_extensions.Self, userId: str) -> Json:
+    async def unfollow(self: typing.Self, userId: str) -> Json:
         """Unfollow a user.
 
         Parameters
@@ -1002,7 +1105,7 @@ class AsyncClient(AsyncSession, AsyncWss):
         """
         return Json(await self.postRequest(f"/g/s/user-profile/{userId}/member/{self.uid}"))
 
-    async def follow(self: typing_extensions.Self, userId: typing.Union[typing.List[str], str]) -> Json:
+    async def follow(self: typing.Self, userId: typing.Union[typing.List[str], str]) -> Json:
         """Follow a user or users.
 
         Parameters
@@ -1024,7 +1127,7 @@ class AsyncClient(AsyncSession, AsyncWss):
             link = f"/g/s/user-profile/{userId}/member"
         return Json(await self.postRequest(link, data))
 
-    async def get_member_following(self: typing_extensions.Self, userId: str, start: int = 0, size: int = 25) -> UserProfileList:
+    async def get_member_following(self: typing.Self, userId: str, start: int = 0, size: int = 25) -> UserProfileList:
         """Get user's followings.
 
         Parameters
@@ -1044,7 +1147,7 @@ class AsyncClient(AsyncSession, AsyncWss):
         """
         return UserProfileList((await self.getRequest(f"/g/s/user-profile/{userId}/joined?start={start}&size={size}"))["userProfileList"]).UserProfileList
 
-    async def get_member_followers(self: typing_extensions.Self, userId: str, start: int = 0, size: int = 25) -> UserProfileList:
+    async def get_member_followers(self: typing.Self, userId: str, start: int = 0, size: int = 25) -> UserProfileList:
         """Get user's followers.
 
         Parameters
@@ -1064,7 +1167,7 @@ class AsyncClient(AsyncSession, AsyncWss):
         """
         return UserProfileList((await self.getRequest(f"/g/s/user-profile/{userId}/member?start={start}&size={size}"))["userProfileList"]).UserProfileList
 
-    async def get_member_visitors(self: typing_extensions.Self, userId: str, start: int = 0, size: int = 25) -> VisitorsList:
+    async def get_member_visitors(self: typing.Self, userId: str, start: int = 0, size: int = 25) -> VisitorsList:
         """Get user's visitor list.
 
         Parameters
@@ -1083,7 +1186,7 @@ class AsyncClient(AsyncSession, AsyncWss):
         """
         return VisitorsList((await self.getRequest(f"/g/s/user-profile/{userId}/visitors?start={start}&size={size}"))["visitors"]).VisitorsList
 
-    async def get_blocker_users(self: typing_extensions.Self, start: int = 0, size: int = 25) -> typing.List[str]:
+    async def get_blocker_users(self: typing.Self, start: int = 0, size: int = 25) -> typing.List[str]:
         """Get blocker user ID list.
 
         Parameters
@@ -1100,7 +1203,7 @@ class AsyncClient(AsyncSession, AsyncWss):
         """
         return (await self.getRequest(f"/g/s/block/full-list?start={start}&size={size}"))["blockerUidList"]
 
-    async def get_blocked_users(self: typing_extensions.Self, start: int = 0, size: int = 25) -> typing.List[str]:
+    async def get_blocked_users(self: typing.Self, start: int = 0, size: int = 25) -> typing.List[str]:
         """Get blocked user ID list.
 
         Parameters
@@ -1117,7 +1220,7 @@ class AsyncClient(AsyncSession, AsyncWss):
         """
         return (await self.getRequest(f"/g/s/block/full-list?start={start}&size={size}"))["blockedUidList"]
 
-    async def get_wall_comments(self: typing_extensions.Self, userId: str, sorting: SortingType = "newest", start: int = 0, size: int = 25) -> CommentList:
+    async def get_wall_comments(self: typing.Self, userId: str, sorting: SortingType = "newest", start: int = 0, size: int = 25) -> CommentList:
         """Get a list of comment in a user's wall.
 
         Parameters
@@ -1148,7 +1251,7 @@ class AsyncClient(AsyncSession, AsyncWss):
 
     @typing.overload
     async def get_blog_comments(
-        self: typing_extensions.Self,
+        self: typing.Self,
         wikiId: str,
         *,
         sorting: SortingType = "newest",
@@ -1157,7 +1260,7 @@ class AsyncClient(AsyncSession, AsyncWss):
     ) -> CommentList: ...
     @typing.overload
     async def get_blog_comments(
-        self: typing_extensions.Self,
+        self: typing.Self,
         *,
         blogId: str,
         sorting: SortingType = "newest",
@@ -1165,7 +1268,7 @@ class AsyncClient(AsyncSession, AsyncWss):
         size: int = 25,
     ) -> CommentList: ...
     async def get_blog_comments(
-        self: typing_extensions.Self,
+        self: typing.Self,
         wikiId: typing.Optional[str] = None,
         blogId: typing.Optional[str] = None,
         sorting: SortingType = "newest",
@@ -1209,9 +1312,9 @@ class AsyncClient(AsyncSession, AsyncWss):
         return CommentList((await self.getRequest(link))["commentList"]).CommentList
 
     @typing.overload  # sticker
-    async def send_message(self: typing_extensions.Self, chatId: str, *, stickerId: str) -> Json: ...
+    async def send_message(self: typing.Self, chatId: str, *, stickerId: str) -> Json: ...
     @typing.overload  # file
-    async def send_message(self: typing_extensions.Self, chatId: str, *, file: typing.BinaryIO, fileType: FileType) -> Json: ...
+    async def send_message(self: typing.Self, chatId: str, *, file: typing.BinaryIO, fileType: FileType) -> Json: ...
     @typing.overload  # yt-video
     async def send_message(
         self,
@@ -1222,7 +1325,7 @@ class AsyncClient(AsyncSession, AsyncWss):
     ) -> Json: ...
     @typing.overload  # yt-video + embed
     async def send_message(
-        self: typing_extensions.Self,
+        self: typing.Self,
         chatId: str,
         *,
         ytVideo: str,
@@ -1237,7 +1340,7 @@ class AsyncClient(AsyncSession, AsyncWss):
     ) -> Json: ...
     @typing.overload  # yt-video + snippet
     async def send_message(
-        self: typing_extensions.Self,
+        self: typing.Self,
         chatId: str,
         *,
         ytVideo: str,
@@ -1248,7 +1351,7 @@ class AsyncClient(AsyncSession, AsyncWss):
     ) -> Json: ...
     @typing.overload  # text
     async def send_message(
-        self: typing_extensions.Self,
+        self: typing.Self,
         chatId: str,
         message: str,
         messageType: int = 0,
@@ -1258,7 +1361,7 @@ class AsyncClient(AsyncSession, AsyncWss):
     ) -> Json: ...
     @typing.overload  # text + embed
     async def send_message(
-        self: typing_extensions.Self,
+        self: typing.Self,
         chatId: str,
         message: typing.Optional[str] = None,
         messageType: int = 0,
@@ -1285,7 +1388,7 @@ class AsyncClient(AsyncSession, AsyncWss):
         mentionUserIds: typing.Optional[typing.Union[typing.List[str], str]] = None
     ) -> Json: ...
     async def send_message(
-        self: typing_extensions.Self,
+        self: typing.Self,
         chatId: str,
         message: typing.Optional[str] = None,
         messageType: int = 0,
@@ -1373,18 +1476,20 @@ class AsyncClient(AsyncSession, AsyncWss):
         data = {
             "type": messageType,
             "content": message,
-            "attachedObject": {
+            "attachedObject": None,
+            "extensions": extensions,
+            "clientRefId": int(time.time() / 10 % 100000000),
+            "timestamp": int(time.time() * 1000),
+        }
+        if any((embedId, embedType, embedLink, embedTitle, embedContent, embedMedia)):
+            data["attachedObject"] = {
                 "objectId": embedId,
                 "objectType": embedType,
                 "link": embedLink,
                 "title": embedTitle,
                 "content": embedContent,
                 "mediaList": embedMedia,
-            },
-            "extensions": extensions,
-            "clientRefId": int(time.time() / 10 % 100000000),
-            "timestamp": int(time.time() * 1000),
-        }
+            }
         if replyTo:
             data["replyMessageId"] = replyTo
         if stickerId:
@@ -1423,7 +1528,7 @@ class AsyncClient(AsyncSession, AsyncWss):
             data["extensions"] = None
         return Json(await self.postRequest(f"/g/s/chat/thread/{chatId}/message", data))
 
-    async def get_community_info(self: typing_extensions.Self, comId: str) -> Community:
+    async def get_community_info(self: typing.Self, comId: str) -> Community:
         """Get community information.
 
         Parameters
@@ -1439,7 +1544,7 @@ class AsyncClient(AsyncSession, AsyncWss):
         """
         return Community((await self.getRequest("/g/s-x{comId}/community/info?withInfluencerList=1&withTopicList=true&influencerListOrderStrategy=fansCount"))["community"]).Community
 
-    async def mark_as_read(self: typing_extensions.Self, chatId: str) -> Json:
+    async def mark_as_read(self: typing.Self, chatId: str) -> Json:
         """Mark as read a chat
 
         Parameters
@@ -1455,7 +1560,7 @@ class AsyncClient(AsyncSession, AsyncWss):
         """
         return Json(await self.postRequest(f"/g/s/chat/thread/{chatId}/mark-as-read"))
 
-    async def delete_message(self: typing_extensions.Self, chatId: str, messageId: str) -> Json:
+    async def delete_message(self: typing.Self, chatId: str, messageId: str) -> Json:
         """Delete a message.
 
         Parameters
@@ -1473,7 +1578,7 @@ class AsyncClient(AsyncSession, AsyncWss):
         """
         return Json(self.deleteRequest(f"/g/s/chat/thread/{chatId}/message/{messageId}"))
 
-    async def get_chat_messages(self: typing_extensions.Self, chatId: str, start: int = 0, size: int = 25) -> MessageList:
+    async def get_chat_messages(self: typing.Self, chatId: str, start: int = 0, size: int = 25) -> MessageList:
         """Get messages from a chat.
 
         Parameters
@@ -1493,7 +1598,7 @@ class AsyncClient(AsyncSession, AsyncWss):
         """
         return MessageList((await self.getRequest(f"/g/s/chat/thread/{chatId}/message?v=2&pagingType=t&start={start}&size={size}"))["messageList"]).MessageList  # is valid?
 
-    async def get_message_info(self: typing_extensions.Self, messageId: str, chatId: str) -> Message:
+    async def get_message_info(self: typing.Self, messageId: str, chatId: str) -> Message:
         """The message information.
 
         Parameters
@@ -1512,11 +1617,11 @@ class AsyncClient(AsyncSession, AsyncWss):
         return Message((await self.getRequest(f"/g/s/chat/thread/{chatId}/message/{messageId}"))["message"]).Message
 
     @typing.overload
-    async def tip_coins(self: typing_extensions.Self, coins: int, chatId: str, *, transactionId: typing.Optional[str] = None) -> Json: ...
+    async def tip_coins(self: typing.Self, coins: int, chatId: str, *, transactionId: typing.Optional[str] = None) -> Json: ...
     @typing.overload
-    async def tip_coins(self: typing_extensions.Self, coins: int, *, blogId: str, transactionId: typing.Optional[str] = None) -> Json: ...
+    async def tip_coins(self: typing.Self, coins: int, *, blogId: str, transactionId: typing.Optional[str] = None) -> Json: ...
     async def tip_coins(
-        self: typing_extensions.Self,
+        self: typing.Self,
         coins: int,
         chatId: typing.Optional[str] = None,
         blogId: typing.Optional[str] = None,
@@ -1561,7 +1666,7 @@ class AsyncClient(AsyncSession, AsyncWss):
             raise ValueError("please put chat or blog Id")
         return Json(await self.postRequest(link, data))
 
-    async def reset_password(self: typing_extensions.Self, email: str, password: str, code: str, deviceId: typing.Optional[str] = None) -> Json:
+    async def reset_password(self: typing.Self, email: str, password: str, code: str, deviceId: typing.Optional[str] = None) -> Json:
         """Reset the account password.
 
         Parameters
@@ -1598,7 +1703,7 @@ class AsyncClient(AsyncSession, AsyncWss):
         }
         return Json(await self.postRequest("/g/s/auth/reset-password", data))
 
-    async def change_password(self: typing_extensions.Self, password: str, newPassword: str) -> Json:
+    async def change_password(self: typing.Self, password: str, newPassword: str) -> Json:
         """Change the account password without verification.
 
         Parameters
@@ -1622,7 +1727,7 @@ class AsyncClient(AsyncSession, AsyncWss):
         }
         return Json(await self.postRequest("/g/s/auth/change-password", data))
 
-    async def get_user_info(self: typing_extensions.Self, userId: str) -> UserProfile:
+    async def get_user_info(self: typing.Self, userId: str) -> UserProfile:
         """Get user profile information.
 
         Parameters
@@ -1638,7 +1743,7 @@ class AsyncClient(AsyncSession, AsyncWss):
         """
         return UserProfile((await self.getRequest(f"/g/s/user-profile/{userId}"))["userProfile"]).UserProfile
 
-    async def comment(self: typing_extensions.Self, comment: str, userId: str, replyTo: typing.Optional[str] = None) -> Json:
+    async def comment(self: typing.Self, comment: str, userId: str, replyTo: typing.Optional[str] = None) -> Json:
         """Comment on user profile.
 
         Parameters
@@ -1667,7 +1772,7 @@ class AsyncClient(AsyncSession, AsyncWss):
             data["respondTo"] = replyTo
         return Json(await self.postRequest(f"/g/s/user-profile/{userId}/g-comment", data))
 
-    async def delete_comment(self: typing_extensions.Self, commentId: str, userId: str) -> Json:
+    async def delete_comment(self: typing.Self, commentId: str, userId: str) -> Json:
         """Delete a comment.
 
         Parameters
@@ -1685,7 +1790,7 @@ class AsyncClient(AsyncSession, AsyncWss):
         """
         return Json(self.deleteRequest(f"/g/s/user-profile/{userId}/g-comment/{commentId}"))
 
-    async def invite_by_host(self: typing_extensions.Self, chatId: str, userId: typing.Union[typing.List[str], str]) -> Json:
+    async def invite_by_host(self: typing.Self, chatId: str, userId: typing.Union[typing.List[str], str]) -> Json:
         """Invite a user or users to a live chat.
 
         Parameters
@@ -1709,7 +1814,7 @@ class AsyncClient(AsyncSession, AsyncWss):
         }
         return Json(await self.postRequest(f"/g/s/chat/thread/{chatId}/avchat-members", data))
 
-    async def kick(self: typing_extensions.Self, chatId: str, userId: str, rejoin: bool = True) -> Json:
+    async def kick(self: typing.Self, chatId: str, userId: str, rejoin: bool = True) -> Json:
         """Kick a user from the chat.
 
         Parameters
@@ -1729,7 +1834,7 @@ class AsyncClient(AsyncSession, AsyncWss):
         """
         return Json(self.deleteRequest(f"/g/s/chat/thread/{chatId}/member/{userId}?allowRejoin={rejoin.real}"))
 
-    async def get_all_users(self: typing_extensions.Self, usersType: UserType = "recent", start: int = 0, size: int = 25) -> UserProfileList:
+    async def get_all_users(self: typing.Self, usersType: UserType = "recent", start: int = 0, size: int = 25) -> UserProfileList:
         """Get amino user list.
 
         Parameters
@@ -1749,9 +1854,9 @@ class AsyncClient(AsyncSession, AsyncWss):
         """
         return UserProfileList((await self.getRequest(f"/g/s/user-profile?type={usersType}&start={start}&size={size}"))["userProfileList"]).UserProfileList
 
-    @typing_extensions.deprecated("get_invise_users is deprecated, use get_all_users instead")
+    @typing.deprecated("get_invise_users is deprecated, use get_all_users instead")
     @deprecated(get_all_users.__qualname__)
-    async def get_invise_users(self: typing_extensions.Self, master_type: UserType = "newest", start: int = 0, size: int = 25) -> UserProfileList:
+    async def get_invise_users(self: typing.Self, master_type: UserType = "newest", start: int = 0, size: int = 25) -> UserProfileList:
         """Get a list of global user profile.
 
         Parameters
@@ -1771,7 +1876,7 @@ class AsyncClient(AsyncSession, AsyncWss):
         """
         return await self.get_all_users(master_type, start=start, size=size)
 
-    async def invite_to_chat(self: typing_extensions.Self, chatId: str, userId: typing.Union[typing.List[str], str]) -> Json:
+    async def invite_to_chat(self: typing.Self, chatId: str, userId: typing.Union[typing.List[str], str]) -> Json:
         """Invite a user or users to global chat.
 
         Parameters
@@ -1793,9 +1898,9 @@ class AsyncClient(AsyncSession, AsyncWss):
         }
         return Json(await self.postRequest(f"/g/s/chat/thread/{chatId}/member/invite", data))
 
-    @typing_extensions.deprecated("invise_invite is deprecated, use invite_to_chat instead")
+    @typing.deprecated("invise_invite is deprecated, use invite_to_chat instead")
     @deprecated(invite_to_chat.__qualname__)
-    async def invise_invite(self: typing_extensions.Self, chatId: str, userId: typing.Union[typing.List[str], str]) -> Json:
+    async def invise_invite(self: typing.Self, chatId: str, userId: typing.Union[typing.List[str], str]) -> Json:
         """Invite a user or users to global chat.
 
         Parameters
@@ -1813,7 +1918,7 @@ class AsyncClient(AsyncSession, AsyncWss):
         """
         return await self.invite_to_chat(chatId=chatId, userId=userId)
 
-    async def block(self: typing_extensions.Self, userId: str) -> Json:
+    async def block(self: typing.Self, userId: str) -> Json:
         """Block an user.
 
         Parameters
@@ -1829,7 +1934,7 @@ class AsyncClient(AsyncSession, AsyncWss):
         """
         return Json(await self.postRequest(f"/g/s/block/{userId}"))
 
-    async def unblock(self: typing_extensions.Self, userId: str) -> Json:
+    async def unblock(self: typing.Self, userId: str) -> Json:
         """Unblock a user.
 
         Parameters
@@ -1845,7 +1950,7 @@ class AsyncClient(AsyncSession, AsyncWss):
         """
         return Json(self.deleteRequest(f"/g/s/block/{userId}"))
 
-    async def get_public_chats(self: typing_extensions.Self, filterType: FilterType = "recommended", start: int = 0, size: int = 25) -> ThreadList:
+    async def get_public_chats(self: typing.Self, filterType: FilterType = "recommended", start: int = 0, size: int = 25) -> ThreadList:
         """Get public global chats.
 
         Parameters
@@ -1865,7 +1970,7 @@ class AsyncClient(AsyncSession, AsyncWss):
         """
         return ThreadList((await self.getRequest(f"/g/s/chat/thread?type=public-all&filterType={filterType}&start={start}&size={size}"))["threadList"]).ThreadList
 
-    async def get_content_modules(self: typing_extensions.Self, version: int = 2) -> Json:
+    async def get_content_modules(self: typing.Self, version: int = 2) -> Json:
         """Get the home topics
 
         Parameters
@@ -1880,7 +1985,7 @@ class AsyncClient(AsyncSession, AsyncWss):
         """
         return Json(await self.getRequest(f"/g/s/home/discover/content-modules?v={version}"))
 
-    async def get_banner_ads(self: typing_extensions.Self, start: int = 0, size: int = 25, pagingType: str = "t") -> ItemList:
+    async def get_banner_ads(self: typing.Self, start: int = 0, size: int = 25, pagingType: str = "t") -> ItemList:
         """Get a list of banner ads.
 
         Parameters
@@ -1900,10 +2005,10 @@ class AsyncClient(AsyncSession, AsyncWss):
         """
         return ItemList((await self.getRequest(f"/g/s/topic/0/feed/banner-ads?moduleId=711f818f-da0c-4aa7-bfa6-d5b58c1464d0&adUnitId=703798&start={start}&size={size}&pagingType={pagingType}"))["itemList"]).ItemList
 
-    async def get_announcements(self: typing_extensions.Self, lang: str = "en", start: int = 0, size: int = 20) -> BlogList:
+    async def get_announcements(self: typing.Self, lang: str = "en", start: int = 0, size: int = 20) -> BlogList:
         return BlogList((await self.getRequest(f"/g/s/announcement?language={lang}&start={start}&size={size}"))["blogList"]).BlogList
 
-    async def get_public_ndc(self: typing_extensions.Self, content_language: str = "en", size: int = 25) -> CommunityList:
+    async def get_public_ndc(self: typing.Self, content_language: str = "en", size: int = 25) -> CommunityList:
         """Get public communities.
 
         Parameters
@@ -1919,7 +2024,7 @@ class AsyncClient(AsyncSession, AsyncWss):
         """
         return CommunityList((await self.getRequest(f"/g/s/topic/0/feed/community?language={content_language}&type=web-explore&categoryKey=recommendation&size={size}&pagingType=t"))["communityList"]).CommunityList
 
-    async def search_community(self: typing_extensions.Self, q: str, lang: str = "en", start: int = 0, size: int = 25) -> CommunityList:
+    async def search_community(self: typing.Self, q: str, lang: str = "en", start: int = 0, size: int = 25) -> CommunityList:
         """Search communities.
 
         Parameters
@@ -1941,7 +2046,7 @@ class AsyncClient(AsyncSession, AsyncWss):
         """
         return CommunityList((await self.getRequest(f"/g/s/community/search?q={q}&language={lang}&completeKeyword=1&start={start}&size={size}"))["communityList"]).CommunityList
 
-    async def invite_to_voice_chat(self: typing_extensions.Self, chatId: str, userId: str) -> Json:
+    async def invite_to_voice_chat(self: typing.Self, chatId: str, userId: str) -> Json:
         """Invite a user to talk in a voice chat.
 
         Parameters
@@ -1963,7 +2068,7 @@ class AsyncClient(AsyncSession, AsyncWss):
         }
         return Json(await self.postRequest(f"/g/s/chat/thread/{chatId}/vvchat-presenter/invite", data))
 
-    async def get_wallet_history(self: typing_extensions.Self, start: int = 0, size: int = 25) -> WalletHistory:
+    async def get_wallet_history(self: typing.Self, start: int = 0, size: int = 25) -> WalletHistory:
         """Get account wallet history.
 
         Parameters
@@ -1981,7 +2086,7 @@ class AsyncClient(AsyncSession, AsyncWss):
         """
         return WalletHistory(await self.getRequest(f"/g/s/wallet/coin/history?start={start}&size={size}")).WalletHistory
 
-    async def get_wallet_info(self: typing_extensions.Self) -> WalletInfo:
+    async def get_wallet_info(self: typing.Self) -> WalletInfo:
         """Get account wallet.
 
         Returns
@@ -1993,7 +2098,7 @@ class AsyncClient(AsyncSession, AsyncWss):
         req = await self.getRequest("/g/s/wallet")
         return WalletInfo(req["wallet"]).WalletInfo
 
-    async def get_chat_members(self: typing_extensions.Self, chatId: str, start: int = 0, size: int = 25) -> UserProfileList:
+    async def get_chat_members(self: typing.Self, chatId: str, start: int = 0, size: int = 25) -> UserProfileList:
         """Get chat member list.
 
         Parameters
@@ -2013,7 +2118,7 @@ class AsyncClient(AsyncSession, AsyncWss):
         """
         return UserProfileList((await self.getRequest(f"/g/s/chat/thread/{chatId}/member?start={start}&size={size}&type=default&cv=1.2"))["memberList"]).UserProfileList
 
-    async def get_from_id(self: typing_extensions.Self, objectId: str, objectType: int, comId: typing.Optional[str] = None) -> FromCode:
+    async def get_from_id(self: typing.Self, objectId: str, objectType: int, comId: typing.Optional[str] = None) -> FromCode:
         """Get info from object ID.
 
         Parameters
@@ -2048,7 +2153,7 @@ class AsyncClient(AsyncSession, AsyncWss):
         return FromCode((await self.postRequest(f"/g/s-x{comId}/link-resolution" if comId else "/g/s/link-resolution", data))["linkInfoV2"]["extensions"]["linkInfo"]).FromCode
 
     async def chat_settings(
-        self: typing_extensions.Self,
+        self: typing.Self,
         chatId: str,
         doNotDisturb: typing.Optional[bool] = None,
         viewOnly: typing.Optional[bool] = None,
@@ -2113,7 +2218,7 @@ class AsyncClient(AsyncSession, AsyncWss):
     async def like_comment(self, commentId: str, blogId: str) -> Json: ...
     @typing.overload
     async def like_comment(self, commentId: str, *, userId: str) -> Json: ...
-    async def like_comment(self: typing_extensions.Self, commentId: str, blogId: typing.Optional[str] = None, userId: typing.Optional[str] = None) -> Json:
+    async def like_comment(self: typing.Self, commentId: str, blogId: typing.Optional[str] = None, userId: typing.Optional[str] = None) -> Json:
         """Like a comment (blog or user profile).
 
         Parameters
@@ -2152,7 +2257,7 @@ class AsyncClient(AsyncSession, AsyncWss):
     async def unlike_comment(self, commentId: str, blogId: str) -> Json: ...
     @typing.overload
     async def unlike_comment(self, commentId: str, *, userId: str) -> Json: ...
-    async def unlike_comment(self: typing_extensions.Self, commentId: str, blogId: typing.Optional[str] = None, userId: typing.Optional[str] = None) -> Json:
+    async def unlike_comment(self: typing.Self, commentId: str, blogId: typing.Optional[str] = None, userId: typing.Optional[str] = None) -> Json:
         """Unlike a comment (blog or user profile).
 
         Parameters
@@ -2184,10 +2289,10 @@ class AsyncClient(AsyncSession, AsyncWss):
         return Json(self.deleteRequest(link))
 
     @typing.overload
-    async def register_check(self: typing_extensions.Self, *, email: str) -> Json: ...
+    async def register_check(self: typing.Self, *, email: str) -> Json: ...
     @typing.overload
-    async def register_check(self: typing_extensions.Self, *, phone: str) -> Json: ...
-    async def register_check(self: typing_extensions.Self, *, email: typing.Optional[str] = None, phone: typing.Optional[str] = None) -> Json:
+    async def register_check(self: typing.Self, *, phone: str) -> Json: ...
+    async def register_check(self: typing.Self, *, email: typing.Optional[str] = None, phone: typing.Optional[str] = None) -> Json:
         """Check if you are registered (email, phone or device ID)
 
         Parameters
@@ -2221,7 +2326,7 @@ class AsyncClient(AsyncSession, AsyncWss):
     @typing.overload
     async def signup_add_profile(self, email: str, password: str, nickname: str, *, accessToken: str, thirdPart: ThirdPartType, address: typing.Optional[str] = None) -> Json: ...
     async def signup_add_profile(
-        self: typing_extensions.Self,
+        self: typing.Self,
         email: str,
         password: str,
         nickname: str,
@@ -2284,7 +2389,7 @@ class AsyncClient(AsyncSession, AsyncWss):
         return Json(await self.postRequest("/g/s/auth/" + ("login" if thirdPart else "register"), data=data))
 
     async def register(
-        self: typing_extensions.Self,
+        self: typing.Self,
         nickname: str,
         email: str,
         password: str,
@@ -2332,7 +2437,7 @@ class AsyncClient(AsyncSession, AsyncWss):
         return Json(await self.postRequest("/g/s/auth/register", data))
 
     async def edit_chat(
-        self: typing_extensions.Self,
+        self: typing.Self,
         chatId: str,
         title: typing.Optional[str] = None,
         content: typing.Optional[str] = None,
@@ -2397,7 +2502,7 @@ class AsyncClient(AsyncSession, AsyncWss):
         res.append(Json(await self.postRequest(f"/g/s/chat/thread/{chatId}", data)))
         return res
 
-    async def remove_cohost(self: typing_extensions.Self, chatId: str, userId: str) -> Json:
+    async def remove_cohost(self: typing.Self, chatId: str, userId: str) -> Json:
         """Remove a chat co-host.
 
         Parameters
@@ -2415,7 +2520,7 @@ class AsyncClient(AsyncSession, AsyncWss):
         """
         return Json(self.deleteRequest(f"/g/s/chat/thread/{chatId}/co-host/{userId}"))
 
-    async def edit_comment(self: typing_extensions.Self, commentId: str, comment: str, userId: str, replyTo: typing.Optional[str] = None) -> Comment:
+    async def edit_comment(self: typing.Self, commentId: str, comment: str, userId: str, replyTo: typing.Optional[str] = None) -> Comment:
         """Edit a user profile comment.
 
         Parameters
@@ -2440,7 +2545,7 @@ class AsyncClient(AsyncSession, AsyncWss):
             data["respondTo"] = replyTo
         return Comment(await self.postRequest(f"/g/s/user-profile/{userId}/comment/{commentId}", data)).Comments
 
-    async def get_comment_info(self: typing_extensions.Self, commentId: str, userId: str) -> Comment:
+    async def get_comment_info(self: typing.Self, commentId: str, userId: str) -> Comment:
         """Get user profile comment information.
 
         Parameters
@@ -2458,7 +2563,7 @@ class AsyncClient(AsyncSession, AsyncWss):
         """
         return Comment(await self.getRequest(f"/g/s/user-profile/{userId}/comment/{commentId}")).Comments
 
-    async def get_notifications(self: typing_extensions.Self, start: int = 0, size: int = 25, pagingType: str = "t") -> NotificationList:
+    async def get_notifications(self: typing.Self, start: int = 0, size: int = 25, pagingType: str = "t") -> NotificationList:
         """Get global notifications.
 
         Parameters
@@ -2479,7 +2584,7 @@ class AsyncClient(AsyncSession, AsyncWss):
         return NotificationList(await self.getRequest(f"/g/s/notification?pagingType={pagingType}&start={start}&size={size}")).NotificationList
 
     async def get_notices(
-        self: typing_extensions.Self,
+        self: typing.Self,
         start: int = 0,
         size: int = 25,
         noticeType: NoticeType = "usersV2",
@@ -2506,7 +2611,7 @@ class AsyncClient(AsyncSession, AsyncWss):
         """
         return NoticeList(await self.getRequest(f"/g/s/notice?type={noticeType}&status={status}&start={start}&size={size}")).NoticeList
 
-    async def accept_promotion(self: typing_extensions.Self, requestId: str) -> Json:
+    async def accept_promotion(self: typing.Self, requestId: str) -> Json:
         """Accept a promotion request.
 
         Parameters
@@ -2522,7 +2627,7 @@ class AsyncClient(AsyncSession, AsyncWss):
         """
         return Json(await self.postRequest(f"/g/s/notice/{requestId}/accept"))
 
-    async def decline_promotion(self: typing_extensions.Self, requestId: str) -> Json:
+    async def decline_promotion(self: typing.Self, requestId: str) -> Json:
         """Decline a promotion request.
 
         Parameters

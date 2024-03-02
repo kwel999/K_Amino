@@ -9,6 +9,7 @@ ext = '.tar.gz'
 RE_VERSION = re.compile(r'-([0-9.]+)[-]?')
 RE_NAME = re.compile(r'(.*)-[0-9.]+[-]?')
 
+
 if not os.path.exists('dist'):
     os.system(f'{sys.executable} setup.py sdist bdist_wheel')
     os.system('cls' if os.name == 'nt' else 'clear')

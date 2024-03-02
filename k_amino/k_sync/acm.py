@@ -1,5 +1,5 @@
 import time
-import typing
+import typing_extensions as typing
 from ..lib.objects import CommunityStats, JoinRequest, Json, UserProfileList
 from ..lib.sessions import Session
 from ..lib.types import ProxiesType, UserType

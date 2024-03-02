@@ -4,7 +4,7 @@ import functools
 import inspect
 import logging
 import time
-import typing
+import typing_extensions as typing
 import ujson
 import websockets
 from .bot import AsyncBot

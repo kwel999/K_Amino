@@ -1,6 +1,6 @@
-import typing
-import httpx
 import enum
+import typing_extensions as typing
+import httpx
 
 __all__ = (
     'CommentPermission',
@@ -26,17 +26,20 @@ FilterType: typing.TypeAlias = typing.Literal[
 NoticeType: typing.TypeAlias = typing.Literal[
     "usersV2"
 ]
+ProxyKey = typing.Literal[
+    "http://",
+    "https://",
+    "all://"
+]
 ProxyType = typing.Union[
     httpx.Proxy,
     httpx.URL,
     str
 ]
 ProxiesType = typing.Union[
-    typing.Dict[
-        typing.Union[
-            httpx.URL,
-            str
-        ],
+    typing.Mapping[str, str],
+    typing.Mapping[
+        typing.Union[httpx.URL, str],
         typing.Optional[ProxyType]
     ],
     ProxyType

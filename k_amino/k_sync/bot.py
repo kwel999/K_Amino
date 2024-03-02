@@ -1,7 +1,7 @@
-import typing
-import typing_extensions
+import typing_extensions as typing
 import easy_events
 from ..lib.objects import Event
+from ..lib.util import NO_ICON_URL
 if typing.TYPE_CHECKING:
     from .local import SubClient  # circular import
 
@@ -26,7 +26,7 @@ class Parameters(easy_events.Parameters):
 
     """
 
-    def __init__(self:typing_extensions.Self, event: Event, subClient: 'SubClient', prefix: str = "!", str_only: bool = True) -> None:
+    def __init__(self: typing.Self, event: Event, subClient: 'SubClient', prefix: str = "!", str_only: bool = True) -> None:
         super().__init__(event.message.content, prefix, str_only)
         self.subClient = self.local = subClient
         self.message = event.message
@@ -35,6 +35,7 @@ class Parameters(easy_events.Parameters):
         self.comId = typing.cast(int, self.event.comId)
         self.authorId = typing.cast(str, self.author.userId)
         self.chatId = typing.cast(str, self.message.chatId)
+        self.authorIcon = typing.cast(str, self.message.author.icon or NO_ICON_URL)
         self.messageId = typing.cast(str, self.message.messageId)
         self.mentions = typing.cast(typing.List[str], event.message.mentionUserIds or [])
         # defaults
@@ -58,17 +59,17 @@ class Bot(easy_events.Events):
         The command prefix. Default is `!`
 
     """
-    def __init__(self: typing_extensions.Self, prefix: str = "!"):
+    def __init__(self: typing.Self, prefix: str = "!"):
         super().__init__(prefix=prefix, str_only=True, first_parameter_object=True, default_event=False)
 
-    def build_parameters(self: typing_extensions.Self, obj_data: Event) -> Parameters:
+    def build_parameters(self: typing.Self, obj_data: Event) -> Parameters:
         from .local import SubClient  # circular import
         subClient = SubClient(comId=obj_data.comId, client=self, acm=True)
         return Parameters(obj_data, subClient, self.prefix, str_only=True)
 
     @typing.overload
     def command(
-        self: typing_extensions.Self,
+        self: typing.Self,
         aliases: typing.List[str] = [],
         condition: typing.Optional[typing.Callable[..., bool]] = None,
         type: typing.Optional[str] = None,
@@ -77,7 +78,7 @@ class Bot(easy_events.Events):
     ) -> typing.Callable[[C], C]: ...
     @typing.overload
     def command(
-        self: typing_extensions.Self,
+        self: typing.Self,
         aliases: typing.List[str] = [],
         condition: typing.Optional[typing.Callable[..., bool]] = None,
         type: typing.Optional[str] = None,
@@ -85,7 +86,7 @@ class Bot(easy_events.Events):
         event_type: typing.Optional[str] = None
     ) -> C: ...
     def command(
-        self: typing_extensions.Self,
+        self: typing.Self,
         aliases: typing.List[str] = [],
         condition: typing.Optional[typing.Callable[..., bool]] = None,
         type: typing.Optional[str] = None,
