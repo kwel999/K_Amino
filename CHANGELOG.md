@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.5.7] - 2024-03-03
+
+### Fixed
+- [Wss.ws_task](https://github.com/kwel999/K_Amino/blob/b613bea3ac684032c47f94a5d71456898696763b/k_amino/k_sync/sockets.py#L843): socket reconnection problems when a frame error occurs
+
 ## [1.5.5.6] - 2024-03-02
 
 ### Added
