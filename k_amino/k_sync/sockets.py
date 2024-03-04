@@ -858,7 +858,7 @@ class Wss(Callbacks, WssClient):
                 print('connection-closed')
                 pass
             except Exception as exc:
-                print('error:', exc)
+                print('ws-error:', repr(exc))
                 # on-error
                 if self.trace:
                     print(f"[ERROR] Error! {exc!r}")
@@ -869,6 +869,7 @@ class Wss(Callbacks, WssClient):
         if self.trace:
             print("[ON-CLOSE] Sockets are closed")
         if self.isOpened and self.socket_task:  # loop closed by error
+            self.isOpened = False
             self.launch()  # reconnect
         else:  # close() called
             self.isOpened = False

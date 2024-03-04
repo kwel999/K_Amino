@@ -856,7 +856,7 @@ class AsyncWss(AsyncCallbacks, AsyncWssClient):
             except websockets.exceptions.ConnectionClosedOK:
                 pass
             except Exception as exc:
-                # on-error
+                print("ws-error:", repr(exc))
                 if self.trace:
                     print(f"[ERROR] Error! {exc!r}")
                 break
@@ -866,6 +866,7 @@ class AsyncWss(AsyncCallbacks, AsyncWssClient):
         if self.trace:
             print("[ON-CLOSE] Sockets are closed")
         if self.isOpened and self.socket_task:  # loop closed by error
+            self.isOpened = False
             await self.launch()  # reconnect
         else:  # close() called
             self.isOpened = False
