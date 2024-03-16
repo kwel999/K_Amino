@@ -5,8 +5,8 @@ import colorama
 import httpx
 from .exception import check_exceptions, check_server_exceptions
 from .headers import Headers
-from .util import api, build_proxy_map, webApi
-from .types import ProxiesType, ProxyType
+from .util import api, webApi
+from .types import ProxiesType
 
 __all__ = ("Session",)
 
@@ -158,7 +158,8 @@ class Session(Headers):
     def postRequest(
         self: typing.Self,
         url: str,
-        data: typing.Union[str, typing.Dict[str, typing.Any], typing.BinaryIO, None] = None,
+        data: typing.Optional[typing.Union[typing.Dict[str, typing.Any], str]] = None,
+        files: typing.Optional[typing.Dict[str, typing.BinaryIO]] = None,
         newHeaders: typing.Optional[typing.Dict[str, str]] = None,
         webRequest: bool = False,
         minify: bool = False
@@ -169,8 +170,10 @@ class Session(Headers):
         ----------
         url : `str`
             The API url/path.
-        data : `str`, `dict[str, Any]`, `BinaryIO`, `optional`
-            The raw data to send. Default is `None`.
+        data : `dict[str, Any]`, `str`, `optional`
+            The json data to send. Default is `None`.
+        files : `dict[str, BinaryIO]`, `optional`
+            The files to upload. Default is `None`.
         newHeaders : `dict[str, str]`, `optional`
             The HTTP headers to include in request. Default is `None`.
         webRequest : `bool`, `optional`
@@ -189,17 +192,14 @@ class Session(Headers):
             If the request fails.
 
         """
-        files = None
         if isinstance(data, dict):
             data = typing.cast(str, json_minify.json_minify(ujson.dumps(data))) if minify else ujson.dumps(data)
-        elif isinstance(data, typing.BinaryIO):
-            files, data = {"file": data}, None
         elif not isinstance(data, str):
             data = None
         if webRequest:
             headers, url = self.web_headers(sid=self.sid), webApi(url)
         else:
-            headers, url = self.app_headers(data=data if isinstance(data, str) else None, sid=self.sid), api(url)
+            headers, url = self.app_headers(data=data, files=bool(files), sid=self.sid), api(url)
         if newHeaders:
             headers.update(newHeaders)
         with httpx.Client(proxies=self.proxies, timeout=self.timeout) as session:  # type: ignore

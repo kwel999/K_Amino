@@ -1,4 +1,5 @@
 import base64
+import contextlib
 import time
 import typing_extensions as typing
 from .sockets import Wss
@@ -455,7 +456,7 @@ class Client(Session, Wss):
         file : `BinaryIO`
             The file opened in read-byte mode (rb).
         fileType : `str`
-            The file type (audio, gif, image).
+            The file type (audio, gif, image, video).
 
         Returns
         -------
@@ -463,14 +464,19 @@ class Client(Session, Wss):
             The url of the uploaded image.
 
         """
+        content_lenght = str(len(file.read()))
+        with contextlib.suppress(AttributeError):
+            file.seek(0)
         if fileType not in typing.get_args(FileType):
             raise ValueError("fileType must be %s not %r." % (', '.join(map(repr, typing.get_args(FileType))), fileType))
         if fileType == "audio":
             ftype = "audio/" + get_file_type(getattr(file, 'name', '.acc'), "acc")
+        elif fileType == "video":
+            ftype = "video/" + get_file_type(getattr(file, 'name', '.mp4'), "mp4")
         else:
-            ftype = "image/" + get_file_type(getattr(file, 'name', '.jpg'), "jpg")
-        newHeaders = {"content-type": ftype, "content-length": str(len(file.read()))}
-        return self.postRequest("/g/s/media/upload", data=file, newHeaders=newHeaders)["mediaValue"]
+            ftype = "image/" + get_file_type(getattr(file, 'name', '.png'), "png")
+        newHeaders = {"Content-Type": ftype, "Content-Length": content_lenght}
+        return self.postRequest("/g/s/media/upload", files={"file": file}, newHeaders=newHeaders)["mediaValue"]
 
     @typing.deprecated("upload_image is deprecated, use upload_media instead")
     @deprecated(upload_media.__qualname__)
@@ -1313,13 +1319,34 @@ class Client(Session, Wss):
         return CommentList(self.getRequest(link)["commentList"]).CommentList
 
     @typing.overload  # sticker
-    def send_message(self: typing.Self, chatId: str, *, stickerId: str) -> Json: ...
+    def send_message(
+        self: typing.Self,
+        chatId: str,
+        *,
+        stickerId: str
+    ) -> Json: ...
     @typing.overload  # file
-    def send_message(self: typing.Self, chatId: str, *, file: typing.BinaryIO, fileType: FileType) -> Json: ...
+    def send_message(
+        self: typing.Self,
+        chatId: str,
+        *,
+        file: typing.BinaryIO,
+        fileType: typing.Literal['audio', 'gif', 'image']
+    ) -> Json: ...
+    @typing.overload  # video file
+    def send_message(
+        self: typing.Self,
+        chatId: str,
+        *,
+        file: typing.BinaryIO,
+        fileType: typing.Literal['video'],
+        fileCoverImage: typing.Optional[typing.BinaryIO] = None
+    ) -> Json: ...
     @typing.overload  # yt-video
     def send_message(
         self,
-        chatId: str, *,
+        chatId: str,
+        *,
         ytVideo: str,
         replyTo: typing.Optional[str] = None,
         mentionUserIds: typing.Optional[typing.Union[typing.List[str], str]] = None
@@ -1395,6 +1422,7 @@ class Client(Session, Wss):
         messageType: int = 0,
         file: typing.Optional[typing.BinaryIO] = None,
         fileType: typing.Optional[FileType] = None,
+        fileCoverImage: typing.Optional[typing.BinaryIO] = None,
         replyTo: typing.Optional[str] = None,
         mentionUserIds: typing.Optional[typing.Union[typing.List[str], str]] = None,
         stickerId: typing.Optional[str] = None,
@@ -1421,7 +1449,9 @@ class Client(Session, Wss):
         file : `BinaryIO`, `optional`
             The file to send, opened in read-bytes. Default is `None`.
         fileType : `FileType`, `optional`
-            The file type to send (audio, gif, image). Default is `None`.
+            The file type to send (audio, gif, image, video). Default is `None`.
+        fileCoverImage : `BinaryIO`, `optional`
+            The cover image for the video file. Default is `None`.
         replyTo : `str`, `optional`
             The message ID to reply. Default is `None`.
         mentionUserIds : `list[str]`, `str`, `optional`
@@ -1461,6 +1491,7 @@ class Client(Session, Wss):
         mentions: typing.List[typing.Any] = []
         embedMedia: typing.List[typing.Any] = []
         extensions: typing.Dict[str, typing.Any] = {}
+        files = None
         if message is not None and file is None:
             message = message.replace("[@", "\u200e\u200f").replace("@]", "\u202c\u202d")
         if mentionUserIds:
@@ -1522,12 +1553,22 @@ class Client(Session, Wss):
                 data["mediaType"] = 100
                 data["mediaUploadValueContentType"] = "image/gif"
                 data["mediaUhqEnabled"] = False
+            elif fileType == "video":
+                files = {"video.mp4": file}
+                videoUpload = {
+                    "contentType": "video/mp4",
+                    "video": "video.mp4"
+                }
+                if fileCoverImage:
+                    videoUpload["cover"] = "cover.jpg"
+                    files["cover.jpg"] = fileCoverImage
+                data["videoUpload"] = videoUpload
             else:
                 raise ValueError(fileType)
             data["mediaUploadValue"] = base64.b64encode(file.read()).decode()
             data["attachedObject"] = None
             data["extensions"] = None
-        return Json(self.postRequest(f"/g/s/chat/thread/{chatId}/message", data))
+        return Json(self.postRequest(f"/g/s/chat/thread/{chatId}/message", data=data, files=files))
 
     def get_community_info(self: typing.Self, comId: str) -> Community:
         """Get community information.

@@ -10,15 +10,16 @@ __url__ = "https://github.com/kwel999/K_Amino"
 __author__ = "KWEL"
 __author_email__ = "itskwel999@gmail.com"
 __license__ = "Apache"
-__newest__ = __version__ = "1.5.5.7"
+__newest__ = __version__ = "1.6.0"
 
 if not typing.TYPE_CHECKING:
-    from json import loads
-    from urllib.request import urlopen
+    import json
+    import urllib.request
     try:
-        __newest__ = loads(urlopen("https://pypi.python.org/pypi/k-amino.py/json").read())["info"]["version"]
+        with urllib.request.urlopen("https://pypi.python.org/pypi/k-amino.py/json") as response:
+            __newest__ = json.loads(response.read())["info"]["version"]
     finally:
-        del loads, urlopen
+        del json, urllib
 
 if __version__ < __newest__:
     print(f"\033[1;31;38mk_amino New Version!: {__newest__} (You are using {__version__})\033[1;36;33m\nDiscord server: \"https://discord.gg/zd8gyFJquT\"\033[1;0m")

@@ -5,12 +5,16 @@ import logging
 import threading
 import time
 import typing_extensions as typing
+import socket
+import socksio
 import ujson
+import urllib.parse
+import httpx
 import websockets.sync.client
 from .bot import Bot
 from ..lib.objects import Event, Payload, UsersActions
 from ..lib.types import ProxiesType
-from ..lib.util import generateSig
+from ..lib.util import build_proxy_map, generateSig
 
 __all__ = (
     'Actions',
@@ -34,6 +38,29 @@ def create_event(func: typing.Callable[P, R]) -> typing.Callable[P, R]:
         return data
     event.__signature__ = inspect.signature(func)  # type: ignore
     return event
+
+
+def build_proxy(proxy: httpx.Proxy) -> socket.socket:
+    hostname = proxy.url.host
+    port = proxy.url.port
+    username, password = proxy.auth or ("", "")
+    sock = socket.create_connection((hostname, port))  # type: ignore
+    conn = socksio.SOCKS5Connection()
+    # The proxy may return any of these options
+    if username or password:
+        request = socksio.SOCKS5UsernamePasswordRequest(username.encode(), password.encode())
+    else:
+        request = socksio.SOCKS5AuthMethodsRequest([  # type: ignore
+            socksio.SOCKS5AuthMethod.NO_AUTH_REQUIRED,
+            socksio.SOCKS5AuthMethod.USERNAME_PASSWORD,
+        ])
+    conn.send(request)
+    sock.sendall(conn.data_to_send())
+    event = conn.receive_data(sock.recv(1024))
+    print("Auth reply:", event)
+    if not event.success:
+        raise Exception("Invalid username/password")
+    return sock
 
 
 class Callbacks(Bot):
@@ -854,11 +881,9 @@ class Wss(Callbacks, WssClient):
             try:
                 self.lastMessage = typing.cast(typing.Dict[str, typing.Any], ujson.loads(self.socket.recv()))
                 self.resolve(self.lastMessage)
-            except websockets.exceptions.ConnectionClosedOK:
-                print('connection-closed')
+            except websockets.exceptions.ConnectionClosed:
                 pass
             except Exception as exc:
-                print('ws-error:', repr(exc))
                 # on-error
                 if self.trace:
                     print(f"[ERROR] Error! {exc!r}")
@@ -878,6 +903,8 @@ class Wss(Callbacks, WssClient):
     def launch(self) -> None:
         if self.isOpened:
             return
+        if not self.sid:
+            raise RuntimeError("Cannot connect without an account")
         final = f"{self.deviceId}|{int(time.time() * 1000)}"
         headers = {
             "NDCDEVICEID": self.deviceId,
@@ -885,13 +912,17 @@ class Wss(Callbacks, WssClient):
             "NDC-MSG-SIG": generateSig(data=final),
         }
         # future feature
-        #if self.proxies:
-        #    proxies = build_proxy_map(self.proxies)
-        #    proxy_list: typing.List[typing.Optional[httpx.Proxy]] = []
-        #    for scheme in ("all://", "wss://", "socks5://", "https://", "http://"):
-        #        if scheme not in proxies:
-        #            continue
-        #        proxy_list.append(proxies[scheme])
+        if self.proxies:
+            proxies = build_proxy_map(self.proxies)
+            proxy_list: typing.List[httpx.Proxy] = []
+            for scheme in ("all://", "wss://", "socks5://", "https://", "http://"):
+                if scheme not in proxies:
+                    continue
+                proxy = proxies[scheme]
+                if not proxy:
+                    continue
+                proxy_list.append(proxy)
+            build_proxy(proxy)
         for tries in range(2, -1, -1):
             #ssl_context = ssl.create_default_context()
             try:
@@ -900,6 +931,8 @@ class Wss(Callbacks, WssClient):
                     additional_headers=headers,
                     user_agent_header=None,
                     compression=None,
+                    open_timeout=15,
+                    close_timeout=15,
                     #ssl_context=ssl_context,
                     logger=logger
                 )
@@ -912,7 +945,7 @@ class Wss(Callbacks, WssClient):
                 break
         if self.trace:
             print("[LAUNCH] Sockets starting . . . ")
-        self.socket_task = threading.Thread(target=self.ws_task, daemon=True)
+        self.socket_task = threading.Thread(target=self.ws_task)
         self.socket_task.start()
         time.sleep(5)
 

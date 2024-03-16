@@ -18,7 +18,8 @@ __all__ = (
 FileType: typing.TypeAlias = typing.Literal[
     "audio",
     "gif",
-    "image"
+    "image",
+    "video"
 ]
 FilterType: typing.TypeAlias = typing.Literal[
     "recommended"

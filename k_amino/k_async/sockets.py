@@ -853,10 +853,10 @@ class AsyncWss(AsyncCallbacks, AsyncWssClient):
             try:
                 self.lastMessage = typing.cast(typing.Dict[str, typing.Any], ujson.loads(await self.socket.recv()))
                 await self.resolve(self.lastMessage)
-            except websockets.exceptions.ConnectionClosedOK:
+            except websockets.exceptions.ConnectionClosed:
                 pass
             except Exception as exc:
-                print("ws-error:", repr(exc))
+                # on-error
                 if self.trace:
                     print(f"[ERROR] Error! {exc!r}")
                 break

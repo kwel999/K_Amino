@@ -124,6 +124,7 @@ class Headers:
     def app_headers(
         self,
         data: typing.Optional[str] = None,
+        files: bool = False,
         sid: typing.Optional[str] = None,
         lang: typing.Optional[str] = None,
         deviceId: typing.Optional[str] = None
@@ -158,6 +159,10 @@ class Headers:
             headers.update({
                 "NDC-MSG-SIG": generateSig(data),
                 "Content-Type": "application/json; charset=utf-8"
+            })
+        if files:
+            headers.update({
+                "Content-Type": "multipart/form-data; boundary=" + uuidString()
             })
         lang = lang or self.lang
         if lang:
