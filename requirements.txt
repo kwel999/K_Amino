@@ -5,5 +5,5 @@ types-ujson
 easy_events<=3.0.0
 json_minify
 websockets>=11.0
-httpx[socks]
+httpx[socks]>=0.15.0
 typing-extensions>=4.7.0

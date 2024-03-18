@@ -1,5 +1,4 @@
 import base64
-import contextlib
 import time
 import typing_extensions as typing
 from .sockets import Wss
@@ -87,7 +86,7 @@ class Client(Session, Wss):
         if proxy:
             if proxies:
                 raise ValueError('You should not provide an proxy and proxies at the same time')
-            proxies = {'all://': proxy}
+            proxies = typing.cast(ProxiesType, {'all://': proxy})
         Wss.__init__(self, trace=trace, is_bot=bot)
         Session.__init__(
             self,
@@ -448,12 +447,12 @@ class Client(Session, Wss):
         }
         return Json(self.postRequest("/g/s/device/", data, newHeaders={"NDCDEVICEID": deviceId}))
 
-    def upload_media(self: typing.Self, file: typing.BinaryIO, fileType: FileType) -> str:
+    def upload_media(self: typing.Self, file: typing.Union[typing.BinaryIO, bytes], fileType: FileType) -> str:
         """Upload a media to the amino server.
 
         Parameters
         ----------
-        file : `BinaryIO`
+        file : `BinaryIO`, `bytes`
             The file opened in read-byte mode (rb).
         fileType : `str`
             The file type (audio, gif, image, video).
@@ -464,19 +463,12 @@ class Client(Session, Wss):
             The url of the uploaded image.
 
         """
-        content_lenght = str(len(file.read()))
-        with contextlib.suppress(AttributeError):
-            file.seek(0)
+        data = file if isinstance(file, bytes) else file.read()
         if fileType not in typing.get_args(FileType):
             raise ValueError("fileType must be %s not %r." % (', '.join(map(repr, typing.get_args(FileType))), fileType))
-        if fileType == "audio":
-            ftype = "audio/" + get_file_type(getattr(file, 'name', '.acc'), "acc")
-        elif fileType == "video":
-            ftype = "video/" + get_file_type(getattr(file, 'name', '.mp4'), "mp4")
-        else:
-            ftype = "image/" + get_file_type(getattr(file, 'name', '.png'), "png")
-        newHeaders = {"Content-Type": ftype, "Content-Length": content_lenght}
-        return self.postRequest("/g/s/media/upload", files={"file": file}, newHeaders=newHeaders)["mediaValue"]
+        ext = "acc" if fileType == "audio" else "mp4" if fileType == "video" else "gif" if fileType == "gif" else "png"
+        newHeaders = {"Content-Type": f"{fileType}/" + get_file_type(getattr(file, 'name', f'.{ext}'))}
+        return self.postRequest("/g/s/media/upload", data=data, newHeaders=newHeaders)["mediaValue"]
 
     @typing.deprecated("upload_image is deprecated, use upload_media instead")
     @deprecated(upload_media.__qualname__)

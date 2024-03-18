@@ -113,12 +113,12 @@ class AsyncSubClient(AsyncAcm, AsyncSession):
         """
         return Json(await self.postRequest(f"/x{self.comId}/s/chat/thread/{chatId}/member/{self.uid}"))
 
-    async def upload_media(self, file: typing.BinaryIO, fileType: FileType) -> str:
+    async def upload_media(self, file: typing.Union[typing.BinaryIO, bytes], fileType: FileType) -> str:
         """Upload a media to the amino server.
 
         Parameters
         ----------
-        file : `BinaryIO`
+        file : `BinaryIO`, `bytes`
             The file opened in read-byte mode (rb).
         fileType : `str`
             The file type (audio, gif, image, video).
@@ -129,19 +129,12 @@ class AsyncSubClient(AsyncAcm, AsyncSession):
             The url of the uploaded image.
 
         """
-        content_lenght = str(len(file.read()))
-        with contextlib.suppress(AttributeError):
-            file.seek(0)
+        data = file if isinstance(file, bytes) else file.read()
         if fileType not in typing.get_args(FileType):
             raise ValueError("fileType must be %s not %r." % (', '.join(map(repr, typing.get_args(FileType))), fileType))
-        if fileType == "audio":
-            ftype = "audio/" + get_file_type(file.name, 'acc')
-        elif fileType == "video":
-            ftype = "video/" + get_file_type(getattr(file, 'name', '.mp4'), "mp4")
-        else:
-            ftype = "image/" + get_file_type(getattr(file, 'name', '.png'), "png")
-        newHeaders = {"Content-Type": ftype, "Content-Length": content_lenght}
-        return (await self.postRequest("/g/s/media/upload", files={"file": file}, newHeaders=newHeaders))["mediaValue"]
+        ext = "acc" if fileType == "audio" else "mp4" if fileType == "video" else "gif" if fileType == "gif" else "png"
+        newHeaders = {"Content-Type": f"{fileType}/" + get_file_type(getattr(file, 'name', f'.{ext}'))}
+        return (await self.postRequest("/g/s/media/upload", data=data, newHeaders=newHeaders))["mediaValue"]
 
     async def leave_chat(self, chatId: str) -> Json:
         """Leave a chat.

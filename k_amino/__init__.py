@@ -10,7 +10,7 @@ __url__ = "https://github.com/kwel999/K_Amino"
 __author__ = "KWEL"
 __author_email__ = "itskwel999@gmail.com"
 __license__ = "Apache"
-__newest__ = __version__ = "1.6.0"
+__newest__ = __version__ = "1.6.1"
 
 if not typing.TYPE_CHECKING:
     import json

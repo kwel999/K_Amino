@@ -158,7 +158,7 @@ class Session(Headers):
     def postRequest(
         self: typing.Self,
         url: str,
-        data: typing.Optional[typing.Union[typing.Dict[str, typing.Any], str]] = None,
+        data: typing.Optional[typing.Union[typing.Dict[str, typing.Any], bytes, str]] = None,
         files: typing.Optional[typing.Dict[str, typing.BinaryIO]] = None,
         newHeaders: typing.Optional[typing.Dict[str, str]] = None,
         webRequest: bool = False,
@@ -170,7 +170,7 @@ class Session(Headers):
         ----------
         url : `str`
             The API url/path.
-        data : `dict[str, Any]`, `str`, `optional`
+        data : `dict[str, Any]`, `bytes`, `str`, `optional`
             The json data to send. Default is `None`.
         files : `dict[str, BinaryIO]`, `optional`
             The files to upload. Default is `None`.
@@ -193,9 +193,11 @@ class Session(Headers):
 
         """
         if isinstance(data, dict):
-            data = typing.cast(str, json_minify.json_minify(ujson.dumps(data))) if minify else ujson.dumps(data)
-        elif not isinstance(data, str):
-            data = None
+            data = ujson.dumps(data)
+        if isinstance(data, str):
+            if minify:
+                data = typing.cast(str, json_minify.json_minify(data))  # type: ignore
+            data = data.encode()
         if webRequest:
             headers, url = self.web_headers(sid=self.sid), webApi(url)
         else:
@@ -209,9 +211,9 @@ class Session(Headers):
             try:
                 content = ujson.loads(response.text)
             except ujson.JSONDecodeError:
-                check_server_exceptions(response.status_code, response.reason_phrase)
+                raise check_server_exceptions(response.status_code, response.reason_phrase) from None
             if response.status_code != 200:
-                check_exceptions(content)
+                raise check_exceptions(content) from None
             return content
 
     def getRequest(self: typing.Self, url: str, params: typing.Optional[typing.Dict[str, typing.Any]] = None) -> typing.Union[typing.Dict[str, typing.Any], typing.NoReturn]:
@@ -234,16 +236,16 @@ class Session(Headers):
 
         """
         headers, url = self.app_headers(sid=self.sid), api(url)
-        with httpx.Client(proxies=self.proxies, timeout=self.timeout) as session:
+        with httpx.Client(proxies=self.proxies, timeout=self.timeout) as session:  # type: ignore
             response = session.get(url=url, params=params, headers=headers)
             if self.debug:
                 self.messageDebug(statusCode=response.status_code, method='get', url=url)
             try:
                 content = ujson.loads(response.text)
             except ujson.JSONDecodeError:
-                check_server_exceptions(response.status_code, response.reason_phrase)
+                raise check_server_exceptions(response.status_code, response.reason_phrase) from None
             if response.status_code != 200:
-                check_exceptions(content)
+                raise check_exceptions(content) from None
             return content
 
     def deleteRequest(self: typing.Self, url: str) -> typing.Union[typing.Dict[str, typing.Any], typing.NoReturn]:
@@ -273,7 +275,7 @@ class Session(Headers):
             try:
                 content = ujson.loads(response.text)
             except ujson.JSONDecodeError:
-                check_server_exceptions(response.status_code, response.reason_phrase)
+                raise check_server_exceptions(response.status_code, response.reason_phrase) from None
             if response.status_code != 200:
-                check_exceptions(content)
+                raise check_exceptions(content) from None
             return content

@@ -123,7 +123,7 @@ class Headers:
 
     def app_headers(
         self,
-        data: typing.Optional[str] = None,
+        data: typing.Optional[bytes] = None,
         files: bool = False,
         sid: typing.Optional[str] = None,
         lang: typing.Optional[str] = None,
@@ -133,7 +133,7 @@ class Headers:
 
         Parameters
         ----------
-        data : `str`, `optional`
+        data : `bytes`, `optional`
             The raw data for the request (body). Default is `None`.
         sid : `str`, `optional`
             The account session ID. Default is `None`.

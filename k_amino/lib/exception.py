@@ -74,7 +74,6 @@ __all__ = (
     'TooManyInviteUsers',
     'TooManyRequests',
     'UnexistentData',
-    'UnknownException',
     'UnsupportedService',
     'UserBannedByTeamAmino',
     'UserNotJoined',
@@ -104,12 +103,12 @@ class ServerError(AminoBaseException):
         self.status = status
 
 class TemporaryIPBan(ServerError): ...
+class PayloadTooLarge(ServerError): ...
 class InternalServerError(ServerError): ...
 class BadGateway(ServerError): ...
 class ServiceUnavailable(ServerError): ...
 
 # api errors
-class UnknownException(APIError): ...
 class AccessDenied(APIError): ...
 class UnsupportedService(APIError): ...
 class InvalidRequest(APIError): ...
@@ -189,16 +188,17 @@ class InvalidAminoID(APIError): ...
 class InvalidName(APIError): ...
 
 
-def check_server_exceptions(status: int, reason: str) -> typing.NoReturn:
-    raise {
+def check_server_exceptions(status: int, reason: str) -> ServerError:
+    return {
         403: TemporaryIPBan,
+        413: PayloadTooLarge,
         500: InternalServerError,
         502: BadGateway,
         503: ServiceUnavailable
-    }.get(status, ServerError)(status, reason) from None
+    }.get(status, ServerError)(status, reason)
 
 
-def check_exceptions(data: typing.Dict[str, typing.Any]) -> typing.NoReturn:
+def check_exceptions(data: typing.Dict[str, typing.Any]) -> APIError:
     """Raise an exception from the amino API.
 
     Parameters
@@ -207,7 +207,7 @@ def check_exceptions(data: typing.Dict[str, typing.Any]) -> typing.NoReturn:
         The data from the amino API.
 
     """
-    raise {
+    return {
         100: UnsupportedService,
         102: FileTooLarge,
         103: InvalidRequest,
@@ -290,4 +290,4 @@ def check_exceptions(data: typing.Dict[str, typing.Any]) -> typing.NoReturn:
         6001: AminoIDAlreadyChanged,
         6002: InvalidAminoID,
         9901: InvalidName,
-    }.get(data.get("api:statuscode", 1000), UnknownException)(data) from None
+    }.get(data.get("api:statuscode", 1000), APIError)(data)

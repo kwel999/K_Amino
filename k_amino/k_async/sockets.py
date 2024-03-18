@@ -4,6 +4,7 @@ import functools
 import inspect
 import logging
 import time
+import socket
 import typing_extensions as typing
 import ujson
 import websockets
@@ -890,6 +891,11 @@ class AsyncWss(AsyncCallbacks, AsyncWssClient):
                     compression=None,
                     logger=logger
                 )
+            except socket.gaierror:
+                if tries == 0:
+                    raise
+                time.sleep(5)
+                continue
             except (TimeoutError, ConnectionError):
                 if tries == 0:
                     raise

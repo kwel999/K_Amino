@@ -54,8 +54,16 @@ def webApi(path: str) -> str:
     return "https://aminoapps.com/api/" + path.removeprefix('/')
 
 
-def generateSig(data: str) -> str:
-    return base64.b64encode(bytes.fromhex(PREFIX) + hmac.new(bytes.fromhex(SIGKEY), data.encode(), hashlib.sha1).digest()).decode()
+def generateSig(data: typing.Union[bytes, str]) -> str:
+    if isinstance(data, str):
+        data = data.encode()
+    return base64.b64encode(
+        bytes.fromhex(PREFIX) + hmac.new(
+            bytes.fromhex(SIGKEY),
+            data,
+            hashlib.sha1
+        ).digest()
+    ).decode()
 
 
 def generateDevice(id: typing.Optional[bytes] = None) -> str:

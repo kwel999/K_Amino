@@ -912,17 +912,17 @@ class Wss(Callbacks, WssClient):
             "NDC-MSG-SIG": generateSig(data=final),
         }
         # future feature
-        if self.proxies:
-            proxies = build_proxy_map(self.proxies)
-            proxy_list: typing.List[httpx.Proxy] = []
-            for scheme in ("all://", "wss://", "socks5://", "https://", "http://"):
-                if scheme not in proxies:
-                    continue
-                proxy = proxies[scheme]
-                if not proxy:
-                    continue
-                proxy_list.append(proxy)
-            build_proxy(proxy)
+        #if self.proxies:
+        #    proxies = build_proxy_map(self.proxies)
+        #    proxy_list: typing.List[httpx.Proxy] = []
+        #    for scheme in ("all://", "wss://", "socks5://", "https://", "http://"):
+        #        if scheme not in proxies:
+        #            continue
+        #        proxy = proxies[scheme]
+        #        if not proxy:
+        #            continue
+        #        proxy_list.append(proxy)
+        #    build_proxy(proxy)
         for tries in range(2, -1, -1):
             #ssl_context = ssl.create_default_context()
             try:
@@ -936,6 +936,11 @@ class Wss(Callbacks, WssClient):
                     #ssl_context=ssl_context,
                     logger=logger
                 )
+            except socket.gaierror:
+                if tries == 0:
+                    raise
+                time.sleep(5)
+                continue
             except (TimeoutError, ConnectionError):
                 if tries == 0:
                     raise
