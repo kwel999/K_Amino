@@ -11,7 +11,8 @@ RE_NAME = re.compile(r'(.*)-[0-9.]+[-]?')
 
 
 if not os.path.exists('dist'):
-    os.system(f'{sys.executable} setup.py sdist bdist_wheel')
+    if os.system(f'{sys.executable} setup.py sdist bdist_wheel'):
+        sys.exit(1)
     os.system('cls' if os.name == 'nt' else 'clear')
     print('dist creted successfully\n')
 
