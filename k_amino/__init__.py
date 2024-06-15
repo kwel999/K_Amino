@@ -10,14 +10,17 @@ __url__ = "https://github.com/kwel999/K_Amino"
 __author__ = "KWEL"
 __author_email__ = "itskwel999@gmail.com"
 __license__ = "Apache"
-__newest__ = __version__ = "1.6.1"
+__newest__ = __version__ = "1.8.0"
 
 if not typing.TYPE_CHECKING:
     import json
+    import urllib.error
     import urllib.request
     try:
         with urllib.request.urlopen("https://pypi.python.org/pypi/k-amino.py/json") as response:
             __newest__ = json.loads(response.read())["info"]["version"]
+    except urllib.error.URLError:
+        pass
     finally:
         del json, urllib
 

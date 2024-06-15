@@ -162,7 +162,7 @@ class AsyncSubClient(AsyncAcm, AsyncSession):
         start : `int`, `optional`
             The start index. Default is `0`.
         size : `int`, `optional`
-            The size of the list. Default is `25` (max is 100).
+            The size of the list. Default is `25` (max is 250).
 
         Returns
         -------
@@ -182,7 +182,7 @@ class AsyncSubClient(AsyncAcm, AsyncSession):
         start : `int`, `optional`
             The start index. Default is `0`.
         size : `int`, `optional`
-            The size of the list. Default is `25` (max is 100).
+            The size of the list. Default is `25` (max is 250).
 
         Returns
         -------
@@ -202,7 +202,7 @@ class AsyncSubClient(AsyncAcm, AsyncSession):
         start : `int`, `optional`
             The start index. Default is `0`.
         size : `int`, `optional`
-            The size of the list. Default is `25` (max is 100).
+            The size of the list. Default is `25` (max is 250).
 
         Returns
         -------
@@ -220,7 +220,7 @@ class AsyncSubClient(AsyncAcm, AsyncSession):
         start : `int`, `optional`
             The start index. Default is `0`.
         size : `int`, `optional`
-            The size of the list. Default is `25` (max is 100).
+            The size of the list. Default is `25` (max is 250).
 
         Returns
         -------
@@ -240,7 +240,7 @@ class AsyncSubClient(AsyncAcm, AsyncSession):
         start : `int`, `optional`
             The start index. Default is 0.
         size : `int`, `optional`
-            The size of the list. Default is `25` (max is 100).
+            The size of the list. Default is `25` (max is 250).
 
         Returns
         -------
@@ -264,7 +264,7 @@ class AsyncSubClient(AsyncAcm, AsyncSession):
             The user profile object.
 
         """
-        return UserProfile((await self.getRequest(f"/x{self.comId}/s/user-profile/{userId}"))["userProfile"]).UserProfile
+        return UserProfile((await self.getRequest(f"/x{self.comId}/s/user-profile/{userId}", dict(withAvatarFrame=1)))["userProfile"]).UserProfile
 
     async def get_user_blogs(self, userId: str, start: int = 0, size: int = 25) -> BlogList:
         """Get user blog list.
@@ -276,7 +276,7 @@ class AsyncSubClient(AsyncAcm, AsyncSession):
         start : `int`, `optional`
             The start index. Default is 0.
         size : `int`, `optional`
-            The size of the list. Default is `25` (max is 100).
+            The size of the list. Default is `25` (max is 250).
 
         Returns
         -------
@@ -296,7 +296,7 @@ class AsyncSubClient(AsyncAcm, AsyncSession):
         start : `int`, `optional`
             The start index. Default is `0`.
         size : `int`, `optional`
-            The size of the list. Default is `25` (max is 100).
+            The size of the list. Default is `25` (max is 250).
 
         Returns
         -------
@@ -316,7 +316,7 @@ class AsyncSubClient(AsyncAcm, AsyncSession):
         start : `int`, `optional`
             The start index. Default is `0`.
         size : `int`, `optional`
-            The size of the list. Default is `25` (max is 100).
+            The size of the list. Default is `25` (max is 250).
 
         Returns
         -------
@@ -324,7 +324,11 @@ class AsyncSubClient(AsyncAcm, AsyncSession):
             The amino user list object.
 
         """
-        return UserProfileList((await self.getRequest(f"/x{self.comId}/s/user-profile?type={usersType}&start={start}&size={size}"))["userProfileList"]).UserProfileList
+        return UserProfileList((await self.getRequest(f"/x{self.comId}/s/user-profile", params=dict(
+            type=usersType,
+            start=start,
+            size=size
+        )))["userProfileList"]).UserProfileList
 
     async def get_chat_members(self, chatId: str, start: int = 0, size: int = 25) -> UserProfileList:
         """Get chat member list.
@@ -336,7 +340,7 @@ class AsyncSubClient(AsyncAcm, AsyncSession):
         start : `int`, `optional`
             The start index. Default is `0`.
         size : `int`, `optional`
-            The size of the list. Default is `25` (max is 100).
+            The size of the list. Default is `25` (max is 250).
 
         Returns
         -------
@@ -370,7 +374,7 @@ class AsyncSubClient(AsyncAcm, AsyncSession):
         start : `int`, `optional`
             The start index. Default is `0`.
         size : `int`, `optional`
-            The size of the list. Default is `25` (max is 100).
+            The size of the list. Default is `25` (max is 250).
 
         Returns
         -------
@@ -390,7 +394,7 @@ class AsyncSubClient(AsyncAcm, AsyncSession):
         start : `int`, `optional`
             The start index. Default is `0`.
         size : `int`, `optional`
-            The size of the list. Default is `25` (max is 100).
+            The size of the list. Default is `25` (max is 250).
 
         Returns
         -------
@@ -1443,7 +1447,7 @@ class AsyncSubClient(AsyncAcm, AsyncSession):
         start : `int`, `optional`
             The start index. Default is `0`.
         size : `int`, `optional`
-            The size of the list. Default is `25` (max is 100).
+            The size of the list. Default is `25` (max is 250).
 
         Returns
         -------
@@ -1504,7 +1508,7 @@ class AsyncSubClient(AsyncAcm, AsyncSession):
         start : `int`, `optional`
             The start index. Default is `0`.
         size : `int`, `optional`
-            The size of the list. Default is `25` (max is 100).
+            The size of the list. Default is `25` (max is 250).
 
         Returns
         -------
@@ -1620,7 +1624,7 @@ class AsyncSubClient(AsyncAcm, AsyncSession):
         start : `int`, `optional`
             The start index. Default is `0`.
         size : `int`, `optional`
-            The size of the list. Default is 25 (max is 100).
+            The size of the list. Default is 25 (max is 250).
 
         Returns
         -------
@@ -1638,7 +1642,7 @@ class AsyncSubClient(AsyncAcm, AsyncSession):
         start : `int`, `optional`
             The start index. Default is `0`.
         size : `int`, `optional`
-            The size of the list. Default is `25` (max is 100).
+            The size of the list. Default is `25` (max is 250).
 
         Returns
         -------
@@ -1656,7 +1660,7 @@ class AsyncSubClient(AsyncAcm, AsyncSession):
         start : `int`, `optional`
             The start index. Default is `0`.
         size : `int`, `optional`
-            The size of the list. Default is `25` (max is 100).
+            The size of the list. Default is `25` (max is 250).
         pagingType : `str`, `optional`
             The paging type to return. Default is 't'.
 
@@ -2328,7 +2332,7 @@ class AsyncSubClient(AsyncAcm, AsyncSession):
         start : `int`, `optional`
             The start index. Default is `0`.
         size : `int`, `optional`
-            The size of the list. Default is `25` (max is 100).
+            The size of the list. Default is `25` (max is 250).
 
         Returns
         -------
@@ -2389,7 +2393,7 @@ class AsyncSubClient(AsyncAcm, AsyncSession):
         start : `int`, `optional`
             The start index. Default is `0`.
         size : `int`, `optional`
-            The size of the list. Default is `25` (max is 100).
+            The size of the list. Default is `25` (max is 250).
 
         Returns
         -------
@@ -2638,7 +2642,7 @@ class AsyncSubClient(AsyncAcm, AsyncSession):
         start : `int`, `optional`
             The start index. Default is `0`.
         size : `int`, `optional`
-            The size of the list. Default is `25` (max is 100).
+            The size of the list. Default is `25` (max is 250).
 
         Returns
         -------
@@ -2712,7 +2716,7 @@ class AsyncSubClient(AsyncAcm, AsyncSession):
         start : `int`, `optional`
             The start index. Default is `0`.
         size : `int`, `optional`
-            The size of the list. Default is `25` (max is 100).
+            The size of the list. Default is `25` (max is 250).
 
         Returns
         -------
@@ -2732,7 +2736,7 @@ class AsyncSubClient(AsyncAcm, AsyncSession):
         start : `int`, `optional`
             The start index. Default is `0`.
         size : `int`, `optional`
-            The size of the list. Default is `25` (max is 100).
+            The size of the list. Default is `25` (max is 250).
 
         Returns
         -------
@@ -2752,7 +2756,7 @@ class AsyncSubClient(AsyncAcm, AsyncSession):
         start : `int`, `optional`
             The start index. Default is `0`.
         size : `int`, `optional`
-            The size of the list. Default is `25` (max is 100).
+            The size of the list. Default is `25` (max is 250).
 
         Returns
         -------
@@ -2770,7 +2774,7 @@ class AsyncSubClient(AsyncAcm, AsyncSession):
         start : `int`, `optional`
             The start index. Default is `0`.
         size : `int`, `optional`
-            The size of the list. Default is `25` (max is 100).
+            The size of the list. Default is `25` (max is 250).
         pagingType : `str`, `optional`
             The paging type to return. Default is 't'.
 
@@ -2790,7 +2794,7 @@ class AsyncSubClient(AsyncAcm, AsyncSession):
         start : `int`, `optional`
             The start index. Default is `0`.
         size : `int`, `optional`
-            The size of the list. Default is `25` (max is 100).
+            The size of the list. Default is `25` (max is 250).
         noticeType : `str`, `optional`
             The notice type to return. Default is 'usersV2'
         status : `int`, `optional`
@@ -2858,7 +2862,7 @@ class AsyncSubClient(AsyncAcm, AsyncSession):
         start : `int`, `optional`
             The start index. Default is `0`.
         size : `int`, `optional`
-            The size of the list. Default is `25` (max is 100).
+            The size of the list. Default is `25` (max is 250).
 
         Returns
         -------
@@ -2983,3 +2987,21 @@ class AsyncSubClient(AsyncAcm, AsyncSession):
         else:
             raise ValueError("Please put the blogId, wikiId, userId or chatId")
         return Json(await self.postRequest(f"/x{self.comId}/s/{endpoint}/admin", data))
+
+    async def get_all_influencers(self, start: int = 0, size: int = 25) -> UserProfileList:
+        """Get the community vip users
+
+        Parameters
+        ----------
+        start : `int`, `optional`
+            The start index. Default is `0`.
+        size : `int`, `optional`
+            The size of the list. Default is `25` (max is 250).
+
+        Returns
+        -------
+        UserProfileList
+            The vip user profiles
+
+        """
+        return UserProfileList((await self.getRequest(f"/x{self.comId}/s/influencer?start={start}&size={size}"))["userProfileList"])

@@ -223,6 +223,8 @@ class Session(Headers):
         ----------
         url : `str`
             The API url/path.
+        params : `dict[str, Any]`, `optional`
+            The endpoint parameters. Default is `None`.
 
         Returns
         -------

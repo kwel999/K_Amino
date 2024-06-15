@@ -5,12 +5,18 @@ import inspect
 import logging
 import time
 import socket
+
+import httpx
+import python_socks
 import typing_extensions as typing
 import ujson
-import websockets
+import websockets.exceptions
+import websockets.client
+
 from .bot import AsyncBot
 from ..lib.objects import Event, Payload, UsersActions
-from ..lib.util import generateSig
+from ..lib.types import ProxiesType
+from ..lib.util import build_proxy_map, generateSig, proxy_connect
 
 __all__ = (
     'AsyncActions',
@@ -595,7 +601,7 @@ class AsyncActions:
 
 
 class AsyncWssClient:
-    socket: typing.Optional[websockets.WebSocketClientProtocol]
+    socket: typing.Optional[websockets.client.WebSocketClientProtocol]
     lastMessage: typing.Optional[typing.Dict[str, typing.Any]]
     @property
     @abc.abstractmethod
@@ -818,6 +824,9 @@ class AsyncWss(AsyncCallbacks, AsyncWssClient):
     def deviceId(self) -> str: ...
     @property
     @abc.abstractmethod
+    def proxies(self) -> typing.Optional[ProxiesType]: ...
+    @property
+    @abc.abstractmethod
     def sid(self) -> typing.Optional[str]: ...
 
     @property
@@ -833,10 +842,11 @@ class AsyncWss(AsyncCallbacks, AsyncWssClient):
         self.trace = trace
         self.isOpened = False
         self.narvi = "https://service.aminoapps.com/api/v1/"
-        self.socket: typing.Optional[websockets.WebSocketClientProtocol] = None
+        self.socket: typing.Optional[websockets.client.WebSocketClientProtocol] = None
         self.socket_url = "wss://ws1.narvii.com"
         self.socket_task: typing.Optional[asyncio.Task[None]] = None
         self.lastMessage = None
+        self.launch_tries = 3
         AsyncCallbacks.__init__(self, is_bot=is_bot)
         AsyncWssClient.__init__(self)
 
@@ -854,13 +864,13 @@ class AsyncWss(AsyncCallbacks, AsyncWssClient):
             try:
                 self.lastMessage = typing.cast(typing.Dict[str, typing.Any], ujson.loads(await self.socket.recv()))
                 await self.resolve(self.lastMessage)
-            except websockets.exceptions.ConnectionClosed:
-                pass
-            except Exception as exc:
+            except websockets.exceptions.WebSocketException as exc:
                 # on-error
                 if self.trace:
                     print(f"[ERROR] Error! {exc!r}")
                 break
+            except ujson.JSONDecodeError:
+                continue
             if self.trace:
                 print("[ON-MESSAGE] Received a message . . .")
         # on-close
@@ -882,24 +892,43 @@ class AsyncWss(AsyncCallbacks, AsyncWssClient):
             "NDCAUTH": typing.cast(str, self.sid),
             "NDC-MSG-SIG": generateSig(data=final),
         }
-        for tries in range(2, -1, -1):
+        proxy_list: typing.List[httpx.URL] = []
+        if self.proxies:
+            proxies = build_proxy_map(self.proxies)
+            for scheme in ("all://", "wss://", "socks5://", "https://", "http://"):
+                if scheme not in proxies:
+                    continue
+                proxy = proxies[scheme]
+                if not proxy:
+                    continue
+                proxy_list.append(proxy)
+        for tries in range(self.launch_tries-1, -1, -1):
+            sock = None
+            url = f"{self.socket_url}/?signbody={final.replace('|', '%7C')}"
+            for proxy in proxy_list + [None]:
+                if proxy:
+                    try:
+                        sock = proxy_connect(url, proxy)
+                    except python_socks.ProxyError:
+                        continue
             try:
-                self.socket = await websockets.connect(
-                    f"{self.socket_url}/?signbody={final.replace('|', '%7C')}",
-                    additional_headers=headers,
+                self.socket = await websockets.client.connect(
+                    url,
+                    sock=sock,
+                    extra_headers=headers,
                     user_agent_header=None,
                     compression=None,
-                    logger=logger
+                    logger=logger,
+                    open_timeout=None,
+                    close_timeout=None,
+                    ping_interval=60,
+                    ping_timeout=None,
+                    max_size=None,
                 )
-            except socket.gaierror:
+            except (websockets.exceptions.WebSocketException, socket.gaierror, AssertionError) as exc:
                 if tries == 0:
-                    raise
+                    raise ConnectionError(exc) from exc
                 time.sleep(5)
-                continue
-            except (TimeoutError, ConnectionError):
-                if tries == 0:
-                    raise
-                time.sleep(1)
                 continue
             else:
                 break
@@ -907,6 +936,10 @@ class AsyncWss(AsyncCallbacks, AsyncWssClient):
             print("[LAUNCH] Sockets starting . . . ")
         self.socket_task = asyncio.create_task(self.ws_task())
         time.sleep(5)
+
+    @property
+    def closed(self) -> bool:
+        return self.socket is None or self.socket.closed
 
     async def close(self) -> None:
         self.isOpened = False

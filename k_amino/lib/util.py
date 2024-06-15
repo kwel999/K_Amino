@@ -7,12 +7,14 @@ import inspect
 import json
 import os
 import random
+import socket
 import time
 import typing_extensions as typing
 import uuid
 import warnings
 
 import httpx
+import python_socks.sync
 
 from .types import ProxiesType
 
@@ -241,20 +243,61 @@ def deprecated(instead: typing.Optional[str] = None) -> typing.Callable[[typing.
     return decorator
 
 
-def build_proxy_map(proxies: typing.Optional[ProxiesType]) -> typing.Dict[str, typing.Optional[httpx.Proxy]]:
-    if isinstance(proxies, typing.Mapping):
-        return {str(key): httpx.Proxy(url=value) if isinstance(value, (str, httpx.URL)) else value for key, value in proxies.items()}
-    else:
-        return {"all://": httpx.Proxy(url=proxies) if isinstance(proxies, (str, httpx.URL)) else proxies}
-
-
 def itemgetter(mapping: typing.Mapping[str, typing.Any], *args: typing.Any) -> typing.Any:
+    """Accumulative getitem.
+
+    Parameters
+    ----------
+    obj : object
+        The object to get the item
+
+    Examples
+    --------
+    >>> obj = {
+    ...     "foo": {
+    ...         "bar": 3.14
+    ...     }
+    ... }
+    >>> itemgetter(obj, "foo", "bar")
+    ... 3.14
+
+    Returns
+    -------
+    object
+        The item value
+
+    """
     for k in args:
         mapping = mapping[k]
     return mapping
 
 
 def attrgetter(obj: typing.Any, *attrnames: str) -> typing.Any:
+    """Get an accumulative attribute.
+
+    Parameters
+    ----------
+    obj : object
+        The object to get attribute
+
+    Examples
+    --------
+    >>> @dataclass
+    ... class Bar:
+    ...     bar: str
+    >>> @dataclass
+    ... class Foo:
+    ...     foo: Bar
+    >>> obj = Foo(Bar("null value"))
+    >>> attrgetter(obj, "foo", "bar")
+    ... 'null value'
+
+    Returns
+    -------
+    object
+        The attribute value
+
+    """
     for name in attrnames:
         obj = getattr(obj, name)
     return obj
@@ -284,3 +327,62 @@ class GenericProperty(typing.Generic[G, S]):
 
     def __delete__(self, instance: typing.Any) -> None:
         raise TypeError('Cannot delete a property')
+
+
+def build_proxy_map(proxies: typing.Optional[ProxiesType]) -> typing.Dict[str, typing.Optional[httpx.URL]]:
+    """Intern function to convert all proxy in a dict, to URL instance
+
+    Parameters
+    ----------
+    proxies : `ProxiesType`, `None`
+        The proxy dict.
+
+    Returns
+    -------
+    dict[str, httpx.URL | None]
+        The convertion result
+
+    """
+    if isinstance(proxies, typing.Mapping):
+        return {str(key): httpx.URL(value) if isinstance(value, (str, httpx.URL)) else value for key, value in proxies.items()}
+    else:
+        return {"all://": httpx.URL(proxies) if isinstance(proxies, (str, httpx.URL)) else proxies}
+
+
+def proxy_connect(url: typing.Union[httpx.URL, str], proxy: typing.Union[httpx.URL, str], proxy_timeout: typing.Optional[float] = None) -> socket.socket:
+    """Create a proxy socket connection to a websocket url.
+
+    Parameters
+    ----------
+    url : `httpx.URL`, `str`
+        The websocket url.
+    proxy : `httpx.URL`, `str`
+        The proxy url. Supported protocols are: http, socks4, socks5
+    proxy_timeout : `float`, `optional`
+        The open-connection timeout. Default is `None`.
+
+    Returns
+    -------
+    socket.socket
+        The websocket connection.
+
+    Raises
+    ------
+    ValueError
+        if the proxy is not supported.
+
+    """
+    url, proxy = httpx.URL(url), httpx.URL(proxy)
+    if not proxy.scheme.startswith(("http", "socks4", "socks5")):
+        raise ValueError(f"Unsupported {proxy.scheme!r} protocol.") from None
+    proxy_type = getattr(python_socks.ProxyType, proxy.scheme.upper().removesuffix("S"))
+    ws_port = 443 if url.scheme.startswith("wss") else 80
+    params: typing.Dict[str, typing.Any] = {
+        "proxy_type": proxy_type,
+        "host": proxy.host,
+        "port": proxy.port or ws_port,
+        "username": proxy.username or None,
+        "password": proxy.password or None
+    }
+    proxy_socket = python_socks.sync.Proxy(proxy_type, proxy.host, proxy.port or ws_port, proxy.username or None, proxy.password or None)  # type: ignore
+    return proxy_socket.connect(url.host, ws_port, proxy_timeout)  # type: ignore

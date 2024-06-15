@@ -161,7 +161,7 @@ class SubClient(Acm, Session):
         start : `int`, `optional`
             The start index. Default is `0`.
         size : `int`, `optional`
-            The size of the list. Default is `25` (max is 100).
+            The size of the list. Default is `25` (max is 250).
 
         Returns
         -------
@@ -181,7 +181,7 @@ class SubClient(Acm, Session):
         start : `int`, `optional`
             The start index. Default is `0`.
         size : `int`, `optional`
-            The size of the list. Default is `25` (max is 100).
+            The size of the list. Default is `25` (max is 250).
 
         Returns
         -------
@@ -201,7 +201,7 @@ class SubClient(Acm, Session):
         start : `int`, `optional`
             The start index. Default is `0`.
         size : `int`, `optional`
-            The size of the list. Default is `25` (max is 100).
+            The size of the list. Default is `25` (max is 250).
 
         Returns
         -------
@@ -219,7 +219,7 @@ class SubClient(Acm, Session):
         start : `int`, `optional`
             The start index. Default is `0`.
         size : `int`, `optional`
-            The size of the list. Default is `25` (max is 100).
+            The size of the list. Default is `25` (max is 250).
 
         Returns
         -------
@@ -239,7 +239,7 @@ class SubClient(Acm, Session):
         start : `int`, `optional`
             The start index. Default is 0.
         size : `int`, `optional`
-            The size of the list. Default is `25` (max is 100).
+            The size of the list. Default is `25` (max is 250).
 
         Returns
         -------
@@ -263,7 +263,7 @@ class SubClient(Acm, Session):
             The user profile object.
 
         """
-        return UserProfile(self.getRequest(f"/x{self.comId}/s/user-profile/{userId}")["userProfile"]).UserProfile
+        return UserProfile(self.getRequest(f"/x{self.comId}/s/user-profile/{userId}", dict(withAvatarFrame=1))["userProfile"]).UserProfile
 
     def get_user_blogs(self, userId: str, start: int = 0, size: int = 25) -> BlogList:
         """Get user blog list.
@@ -275,7 +275,7 @@ class SubClient(Acm, Session):
         start : `int`, `optional`
             The start index. Default is 0.
         size : `int`, `optional`
-            The size of the list. Default is `25` (max is 100).
+            The size of the list. Default is `25` (max is 250).
 
         Returns
         -------
@@ -295,7 +295,7 @@ class SubClient(Acm, Session):
         start : `int`, `optional`
             The start index. Default is `0`.
         size : `int`, `optional`
-            The size of the list. Default is `25` (max is 100).
+            The size of the list. Default is `25` (max is 250).
 
         Returns
         -------
@@ -315,7 +315,7 @@ class SubClient(Acm, Session):
         start : `int`, `optional`
             The start index. Default is `0`.
         size : `int`, `optional`
-            The size of the list. Default is `25` (max is 100).
+            The size of the list. Default is `25` (max is 250).
 
         Returns
         -------
@@ -335,7 +335,7 @@ class SubClient(Acm, Session):
         start : `int`, `optional`
             The start index. Default is `0`.
         size : `int`, `optional`
-            The size of the list. Default is `25` (max is 100).
+            The size of the list. Default is `25` (max is 250).
 
         Returns
         -------
@@ -369,7 +369,7 @@ class SubClient(Acm, Session):
         start : `int`, `optional`
             The start index. Default is `0`.
         size : `int`, `optional`
-            The size of the list. Default is `25` (max is 100).
+            The size of the list. Default is `25` (max is 250).
 
         Returns
         -------
@@ -389,7 +389,7 @@ class SubClient(Acm, Session):
         start : `int`, `optional`
             The start index. Default is `0`.
         size : `int`, `optional`
-            The size of the list. Default is `25` (max is 100).
+            The size of the list. Default is `25` (max is 250).
 
         Returns
         -------
@@ -646,7 +646,7 @@ class SubClient(Acm, Session):
             data["stickerId"] = stickerId
             data["type"] = 3
         if snippetLink and snippetImage:
-            data["attachedObject"] = None
+            #data["attachedObject"] = None
             extensions["linkSnippetList"] = [{
                 "link": snippetLink,
                 "mediaType": 100,
@@ -1442,7 +1442,7 @@ class SubClient(Acm, Session):
         start : `int`, `optional`
             The start index. Default is `0`.
         size : `int`, `optional`
-            The size of the list. Default is `25` (max is 100).
+            The size of the list. Default is `25` (max is 250).
 
         Returns
         -------
@@ -1503,7 +1503,7 @@ class SubClient(Acm, Session):
         start : `int`, `optional`
             The start index. Default is `0`.
         size : `int`, `optional`
-            The size of the list. Default is `25` (max is 100).
+            The size of the list. Default is `25` (max is 250).
 
         Returns
         -------
@@ -1619,7 +1619,7 @@ class SubClient(Acm, Session):
         start : `int`, `optional`
             The start index. Default is `0`.
         size : `int`, `optional`
-            The size of the list. Default is 25 (max is 100).
+            The size of the list. Default is 25 (max is 250).
 
         Returns
         -------
@@ -1637,7 +1637,7 @@ class SubClient(Acm, Session):
         start : `int`, `optional`
             The start index. Default is `0`.
         size : `int`, `optional`
-            The size of the list. Default is `25` (max is 100).
+            The size of the list. Default is `25` (max is 250).
 
         Returns
         -------
@@ -1655,7 +1655,7 @@ class SubClient(Acm, Session):
         start : `int`, `optional`
             The start index. Default is `0`.
         size : `int`, `optional`
-            The size of the list. Default is `25` (max is 100).
+            The size of the list. Default is `25` (max is 250).
         pagingType : `str`, `optional`
             The paging type to return. Default is 't'.
 
@@ -1710,9 +1710,11 @@ class SubClient(Acm, Session):
         if transactionId is None:
             transactionId = generateTransactionId()
         data: typing.Dict[str, typing.Any] = {
+            "tippingContext": {
+                "transactionId": transactionId
+            },
             "coins": coins,
-            "tippingContext": {"transactionId": transactionId},
-            "timestamp": int(time.time() * 1000),
+            "timestamp": int(time.time() * 1000)
         }
         if chatId:
             link = f"/x{self.comId}/s/chat/thread/{chatId}/tipping"
@@ -2327,7 +2329,7 @@ class SubClient(Acm, Session):
         start : `int`, `optional`
             The start index. Default is `0`.
         size : `int`, `optional`
-            The size of the list. Default is `25` (max is 100).
+            The size of the list. Default is `25` (max is 250).
 
         Returns
         -------
@@ -2388,7 +2390,7 @@ class SubClient(Acm, Session):
         start : `int`, `optional`
             The start index. Default is `0`.
         size : `int`, `optional`
-            The size of the list. Default is `25` (max is 100).
+            The size of the list. Default is `25` (max is 250).
 
         Returns
         -------
@@ -2637,7 +2639,7 @@ class SubClient(Acm, Session):
         start : `int`, `optional`
             The start index. Default is `0`.
         size : `int`, `optional`
-            The size of the list. Default is `25` (max is 100).
+            The size of the list. Default is `25` (max is 250).
 
         Returns
         -------
@@ -2711,7 +2713,7 @@ class SubClient(Acm, Session):
         start : `int`, `optional`
             The start index. Default is `0`.
         size : `int`, `optional`
-            The size of the list. Default is `25` (max is 100).
+            The size of the list. Default is `25` (max is 250).
 
         Returns
         -------
@@ -2731,7 +2733,7 @@ class SubClient(Acm, Session):
         start : `int`, `optional`
             The start index. Default is `0`.
         size : `int`, `optional`
-            The size of the list. Default is `25` (max is 100).
+            The size of the list. Default is `25` (max is 250).
 
         Returns
         -------
@@ -2751,7 +2753,7 @@ class SubClient(Acm, Session):
         start : `int`, `optional`
             The start index. Default is `0`.
         size : `int`, `optional`
-            The size of the list. Default is `25` (max is 100).
+            The size of the list. Default is `25` (max is 250).
 
         Returns
         -------
@@ -2769,7 +2771,7 @@ class SubClient(Acm, Session):
         start : `int`, `optional`
             The start index. Default is `0`.
         size : `int`, `optional`
-            The size of the list. Default is `25` (max is 100).
+            The size of the list. Default is `25` (max is 250).
         pagingType : `str`, `optional`
             The paging type to return. Default is 't'.
 
@@ -2789,7 +2791,7 @@ class SubClient(Acm, Session):
         start : `int`, `optional`
             The start index. Default is `0`.
         size : `int`, `optional`
-            The size of the list. Default is `25` (max is 100).
+            The size of the list. Default is `25` (max is 250).
         noticeType : `str`, `optional`
             The notice type to return. Default is 'usersV2'
         status : `int`, `optional`
@@ -2857,7 +2859,7 @@ class SubClient(Acm, Session):
         start : `int`, `optional`
             The start index. Default is `0`.
         size : `int`, `optional`
-            The size of the list. Default is `25` (max is 100).
+            The size of the list. Default is `25` (max is 250).
 
         Returns
         -------
@@ -2982,3 +2984,21 @@ class SubClient(Acm, Session):
         else:
             raise ValueError("Please put the blogId, wikiId, userId or chatId")
         return Json(self.postRequest(f"/x{self.comId}/s/{endpoint}/admin", data))
+
+    def get_all_influencers(self, start: int = 0, size: int = 25) -> UserProfileList:
+        """Get the community vip users
+
+        Parameters
+        ----------
+        start : `int`, `optional`
+            The start index. Default is `0`.
+        size : `int`, `optional`
+            The size of the list. Default is `25` (max is 250).
+
+        Returns
+        -------
+        UserProfileList
+            The vip user profiles
+
+        """
+        return UserProfileList(self.getRequest(f"/x{self.comId}/s/influencer?start={start}&size={size}")["userProfileList"])

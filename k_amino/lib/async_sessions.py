@@ -216,13 +216,15 @@ class AsyncSession(Headers):
                 raise check_exceptions(content) from None
             return content
 
-    async def getRequest(self: typing.Self, url: str) -> typing.Union[typing.Dict[str, typing.Any], typing.NoReturn]:
+    async def getRequest(self: typing.Self, url: str, params: typing.Optional[typing.Dict[str, typing.Any]] = None) -> typing.Union[typing.Dict[str, typing.Any], typing.NoReturn]:
         """Make a GET request to the amino API.
 
         Parameters
         ----------
         url : `str`
             The API url/path.
+        params : `dict[str, Any]`, `optional`
+            The endpoint parameters. Default is `None`.
 
         Returns
         -------
@@ -237,7 +239,7 @@ class AsyncSession(Headers):
         """
         headers, url = self.app_headers(sid=self.sid), api(url)
         async with httpx.AsyncClient(proxies=self.proxies, timeout=self.timeout) as session:  # type: ignore
-            response = await session.get(url=url, headers=headers)
+            response = await session.get(url=url, params=params, headers=headers)
             if self.debug:
                 self.messageDebug(statusCode=response.status_code, method='get', url=url)
             try:

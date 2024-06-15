@@ -46,4 +46,5 @@ setup(
     install_requires=REQUIREMENTS,
     setup_requires=["wheel"],
     packages=find_packages(),
+    package_data={'k_amino': ['py.typed']}
 )

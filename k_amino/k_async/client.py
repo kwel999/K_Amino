@@ -1004,7 +1004,7 @@ class AsyncClient(AsyncSession, AsyncWss):
             The JSON response.
 
         """
-        return Json(await self.postRequest(f"x/{comId}/s/community/leave"))
+        return Json(await self.postRequest(f"/x{comId}/s/community/leave"))
 
     async def join_community(self: typing.Self, comId: int, invId: typing.Optional[str] = None) -> Json:
         """Join a community.
@@ -1574,7 +1574,11 @@ class AsyncClient(AsyncSession, AsyncWss):
             The community object.
 
         """
-        return Community((await self.getRequest("/g/s-x{comId}/community/info?withInfluencerList=1&withTopicList=true&influencerListOrderStrategy=fansCount"))["community"]).Community
+        return Community((await self.getRequest(f"/g/s-x{comId}/community/info", params=dict(
+            withInfluencerList=1,
+            withTopicList="true",
+            influencerListOrderStrategy='fansCount'
+        )))["community"]).Community
 
     async def mark_as_read(self: typing.Self, chatId: str) -> Json:
         """Mark as read a chat
@@ -1773,7 +1777,7 @@ class AsyncClient(AsyncSession, AsyncWss):
             The user profile object.
 
         """
-        return UserProfile((await self.getRequest(f"/g/s/user-profile/{userId}"))["userProfile"]).UserProfile
+        return UserProfile((await self.getRequest(f"/g/s/user-profile/{userId}", dict(withAvatarFrame=1)))["userProfile"]).UserProfile
 
     async def comment(self: typing.Self, comment: str, userId: str, replyTo: typing.Optional[str] = None) -> Json:
         """Comment on user profile.

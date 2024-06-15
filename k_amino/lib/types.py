@@ -33,7 +33,6 @@ ProxyKey = typing.Literal[
     "all://"
 ]
 ProxyType = typing.Union[
-    httpx.Proxy,
     httpx.URL,
     str
 ]

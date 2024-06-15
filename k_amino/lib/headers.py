@@ -158,6 +158,7 @@ class Headers:
         if data:
             headers.update({
                 "NDC-MSG-SIG": generateSig(data),
+                "Content-Length": str(len(data)),
                 "Content-Type": "application/json; charset=utf-8"
             })
         if files:
@@ -167,7 +168,10 @@ class Headers:
         lang = lang or self.lang
         if lang:
             lcode, lheader = split_lang(lang)
-            headers.update({"NDCLANG": lcode, "Accept-Language": lheader})
+            headers.update({
+                "NDCLANG": lcode,
+                "Accept-Language": lheader
+            })
         sid = sid or self.sid
         if sid:
             headers.update({"NDCAUTH": sid if sid.startswith('sid=') else f'sid={sid}'})
