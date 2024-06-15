@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.8.0] - 2024-05-16
+
+## Added
+- [SubClient.get_all_influencers](https://github.com/kwel999/K_Amino/blob/4733d418a8248b06c78c4d749880cd82fefde014/k_amino/k_sync/local.py#L2988) & [AsyncSubClient.get_all_influencers](https://github.com/kwel999/K_Amino/blob/4733d418a8248b06c78c4d749880cd82fefde014/k_amino/k_async/local.py#L2991) : Get the VIP user profiles of a community
+- [Wss.closed](https://github.com/kwel999/K_Amino/blob/4733d418a8248b06c78c4d749880cd82fefde014/k_amino/k_sync/sockets.py#L940) & [AsyncWss.closed](https://github.com/kwel999/K_Amino/blob/4733d418a8248b06c78c4d749880cd82fefde014/k_amino/k_async/sockets.py#L941) : The `closed` property determines the state of the websocket connection
+- [util.itemgetter](https://github.com/kwel999/K_Amino/blob/4733d418a8248b06c78c4d749880cd82fefde014/k_amino/lib/util.py#L246) : Internal functionality to better access nested elements.
+- [util.attrgetter](https://github.com/kwel999/K_Amino/blob/4733d418a8248b06c78c4d749880cd82fefde014/k_amino/lib/util.py#L275) : Internal functionality to better access nested attributes.
+- [util.build_proxy_map](https://github.com/kwel999/K_Amino/blob/4733d418a8248b06c78c4d749880cd82fefde014/k_amino/lib/util.py#L332) : Internal functionality to parse a given proxy value on client instances
+- [util.proxy_connect](https://github.com/kwel999/K_Amino/blob/4733d418a8248b06c78c4d749880cd82fefde014/k_amino/lib/util.py#L352) : Internal functionality to create a connection as a proxy
+- [py.typed](https://github.com/kwel999/K_Amino/blob/4733d418a8248b06c78c4d749880cd82fefde014/k_amino/py.typed) : the typing of the package was verified
+
+### Fixed
+
+- [__init__.py](https://github.com/kwel999/K_Amino/blob/4733d418a8248b06c78c4d749880cd82fefde014/k_amino/__init__.py#L22) : HTTPError when calling package without internet
+- [Client.leave_community](https://github.com/kwel999/K_Amino/blob/4733d418a8248b06c78c4d749880cd82fefde014/k_amino/k_sync/client.py#L994) & [AsyncClient.leave_community](https://github.com/kwel999/K_Amino/blob/4733d418a8248b06c78c4d749880cd82fefde014/k_amino/k_async/client.py#L993) : Uri format error
+- Updated parameters in all docstrings
+
+### Changed
+- The websocket connection now supports proxy, the dictionary keys are : `all://`, `wss://`, `socks5://`, `https://`, `http://`
+- [requirements.txt](https://github.com/kwel999/K_Amino/blob/4733d418a8248b06c78c4d749880cd82fefde014/requirements.txt) : replaced `websockets` dependency to `python-socks[asyncio]`
+
+### Removed
+- [types.ProxyType](https://github.com/kwel999/K_Amino/blob/4733d418a8248b06c78c4d749880cd82fefde014/k_amino/lib/types.py#L35) : The `httpx.Proxy` type was removed due to automatic encryption of the user/password parameters.
+
 ## [1.6.1] - 2024-03-17
 
 ### Added
